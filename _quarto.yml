@@ -10,17 +10,14 @@ format:
   html:
     theme: flatly
     css: styles.css
-    embed-resources: true
     toc: true
     toc-depth: 4
     toc-location: left
     toc-title: ' '
     code-fold: false
     code-tools: false
+    code-link: false
     grid:
       body-width: 1200px
       sidebar-width: 380px
       margin-width: 340px
-
-
-

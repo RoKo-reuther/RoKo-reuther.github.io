@@ -1,7 +1,7 @@
 ---
 title: "Fe Treatment Model"
 
-server: shiny
+#server: shiny
 
 execute:
   echo: false
@@ -1401,15 +1401,20 @@ plot_std_omega_evolution <- function(data, N_lines, grid) {
 
 ::: {layout-ncol="2"}
 ```{r}
+#| eval: FALSE
+
 sliderInput("steps", "Time steps:", width = "500px", min = 1, max = timesteps, value = c(1, timesteps))
 ```
 
 ```{r}
+#| eval: FALSE
+
 sliderInput("depth", "Depth:", width = "500px", min = round(min(grid$x.mid), 3), max = round(max(grid$x.mid), 3), value = c(round(min(grid$x.mid), 3), round(max(grid$x.mid), 3)))
 ```
 :::
 
 ```{r}
+#| eval: FALSE
 #| column: screen-inset
 #| layout-ncol: 4
 
@@ -1426,6 +1431,7 @@ plotOutput("plotdCdt.Fe2", height = "550px")
 ```
 
 ```{r}
+#| eval: FALSE
 #| context: data
 
 timesteps <- timesteps
@@ -1437,6 +1443,7 @@ s2p <- conversion_factors$s2p
 ```
 
 ```{r}
+#| eval: FALSE
 #| context: server
 
 index_depth <- reactive({grid$x.mid > input$depth[1] & grid$x.mid < input$depth[2]})
