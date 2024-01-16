@@ -4,17 +4,23 @@ project:
 
 website:
   title: "RoKo-reuther.github.io"
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home
-      - about.qmd
+  navbar: false
 
 format:
   html:
-    theme: cosmo
+    theme: flatly
     css: styles.css
+    embed-resources: true
     toc: true
+    toc-depth: 4
+    toc-location: left
+    toc-title: ' '
+    code-fold: false
+    code-tools: false
+    grid:
+      body-width: 1200px
+      sidebar-width: 380px
+      margin-width: 340px
 
 
 
