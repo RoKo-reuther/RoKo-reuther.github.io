@@ -18,6 +18,7 @@ require(microbenchmark)
 require(plotly)
 ```
 
+
 ## Concept
 
 ### Reactions
@@ -187,6 +188,7 @@ with $\quad k_{diss} \approx 2.5 \times 10^{-1} \; yr^{-1}$
 
 ## Equilibrium Reactions described via Tableau
 
+
 ```{r read tableau}
 excel <- read_fods("tableau.fods", sheet = "morel_tableau")
 
@@ -214,8 +216,10 @@ model_species <- c("ALK", "DIC", "TOT_P", "TOT_N5", "TOT_N3", "TOT_S6", "TOT_S2"
 rm(column_H2O, column_logK, column_species_names, row_H2O, excel)
 ```
 
+
 The Tableau is used to calculate equilibrium speciation of solute species after model run.
 Fast equilibrium reactions are neglected during model runtime (so far).
+
 
 ```{r print tableau}
 options(knitr.kable.NA = '')
@@ -223,9 +227,11 @@ knitr::kable(tableau_print)
 ```
 
 
+
 ## Functions
 
 ### Solve Tableau
+
 
 ```{r def solve_tableau}
 #| echo: true
@@ -255,7 +261,9 @@ solve_tableau <- function(component_total, tableau, logK, N_grid) {
 }
 ```
 
+
 ### Plot steady.1D results
+
 
 ```{r def plot functions 1}
 #| echo: true
@@ -323,7 +331,9 @@ plot_omega <- function(std) {
 }
 ```
 
+
 ### Plot Runge-Kutta results
+
 
 ```{r def plot functions 2}
 #| echo: true
@@ -376,9 +386,11 @@ plot_std_rate_evolution <- function(std, selection, N_lines) {
 ```
 
 
+
 ## Model Setup
 
 ### Grid
+
 ```{r grid setup}
 #| echo: true
 
@@ -388,7 +400,9 @@ N_grid   <- 400 # (-)
 grid     <- setup.grid.1D(L = length, N = N_grid, dx.1=0.0005)
 ```
 
+
 ### Porosity / Solid Volume Fraction
+
 ```{r porosity}
 #| echo: true
 
@@ -415,7 +429,9 @@ conversion_factors <- list(
 )
 ```
 
+
 ### Advective Velocities
+
 ```{r advection}
 #| echo: true
 
@@ -431,7 +447,9 @@ advective_velocities <- setup.compaction.1D(
 )
 ```
 
+
 ### Diffusion Coefficients
+
 ```{r diffusion}
 #| echo: true
 
@@ -502,7 +520,9 @@ plot(x=diffusion_coefficients$O2, y=grid$x.int, type="l",
      ylim=c(length,0), ylab="depth (m)", xlab="D_O2 (m2/yr)")
 ```
 
+
 ### Boundary Conditions
+
 ```{r boundary conditions}
 #| echo: true
 
@@ -530,7 +550,9 @@ boundary_conditions <- c(
 )
 ```
 
+
 ### Reaction Parameters
+
 ```{r reaction parameters}
 #| echo: true
 
@@ -561,7 +583,9 @@ reaction_parameter <- c(
 )
 ```
 
+
 ### Collect Inputs
+
 ```{r collect inputs}
 #| echo: true
 
@@ -577,7 +601,9 @@ parameter <- c(
 N_species <- length(model_species)
 ```
 
+
 ### Model Function
+
 ```{r model function}
 #| echo: true
 #| code-fold: show
@@ -911,6 +937,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
 ```
 
 
+
 ## Solve Model
 
 ### 1) Steady State
@@ -919,6 +946,7 @@ Steady State is found in a two step procedure:
 
 1) Solve steady state without equilibrium solver. All reactions are controlled by component-totals. If necessary, pH dependent speciation is estiamted based on **???**
 2) Solve steady state with equilibrium solver. All reaction now are controlled by the actual concentrations.
+
 
 ```{r std1}
 #| echo: true
@@ -962,7 +990,9 @@ std2 <- steady.1D(
 ```
 
 
+
 #### Profiles: Component-Totals
+
 
 ```{r plot std2}
 #| column: screen-inset
@@ -973,7 +1003,9 @@ std2 <- steady.1D(
 plot_std_profiles(std2)
 ```
 
+
 #### Profiles: Speciation
+
 
 ```{r plot std2 speciation}
 #| column: screen-inset
@@ -1076,7 +1108,9 @@ legend(
 )
 ```
 
+
 #### Profile: pH
+
 
 ```{r plot pH}
 #| out.width: 100%
@@ -1085,7 +1119,9 @@ pH <- -log10(speciation[,1] * 10^-3) # mol/m3 * 10^-3 m3/L
 plot(grid$x.mid ~ pH, ylim = c(0.1, 0), type = "l", ylab = "depth (m)", lwd = 2)
 ```
 
+
 #### Profiles: Saturation
+
 
 ```{r plot saturation}
 #| out.width: 100%
@@ -1107,21 +1143,26 @@ plot(
   )
 ```
 
+
 #### Profiles: Reaction Rates
 
 ##### OM Degradation
+
 ```{r plot rates OM Degradation}
 #| out.width: 100%
 
 plot_std_rates(std2, c("R1", "R2", "R3", "R4", "R5", "R6"))
 ```
 
+
 ##### Siderite Precipitation
+
 ```{r plot rates Siderite Precip}
 #| out.width: 100%
 
 plot_std_rates(std2, c("R7", "R8"))
 ```
+
 
 
 ## Mass Balances
@@ -1137,6 +1178,7 @@ with
 - $J(a)_i$: flux of species $i$ across upper boundary
 - $J(b)_i$: flux of species $i$ across lower boundary
 - $\Psi$: volume fraction.
+
 
 ```{r std species-based mass balances}
 #| echo: true
@@ -1205,6 +1247,7 @@ knitr::kable(
 ```
 
 
+
 ### Element-based Mass Balances
 
 The total amount of an chemical element $e$ is not influenced by chemical reactions.
@@ -1217,6 +1260,7 @@ From this follows, that under stationary conditions the flux in and out of the s
 $$\frac{dC_{A,e}}{dt} \; \left( \frac{mol}{m^2 \cdot a} \right) = J(a)_e - J(b)_e = 0$$
 
 **Elemental Composition of Model-Species**
+
 ```{r elemental composition}
 
 elemental_composition <- list(
@@ -1374,3 +1418,4 @@ knitr::kable(
   valign = "t"
 )
 ```
+
