@@ -1150,8 +1150,6 @@ plot(grid$x.mid ~ pH, ylim = c(0.1, 0), type = "l", ylab = "depth (m)", lwd = 2)
 
 rcols <- viridis::viridis(2)
 
-omega_siderite <- speciation[,"CO3"] * std1$y[, "Fe2"] / parameter$Ksp_siderite
-
 plot(
     x = std2$omega_siderite,
     y = grid$x.mid,
