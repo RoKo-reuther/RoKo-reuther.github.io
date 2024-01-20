@@ -8,6 +8,14 @@ execute:
 bibliography: FeTreatment.bib
 ---
 
+```{r document switches}
+# load std1 from disk (false) or calculate new (true)
+run_std1 <- FALSE
+
+# load std2 from disk (false) or calculate new (true)
+run_std2 <- FALSE
+```
+
 ```{r load libraries}
 #| message: false
 
@@ -982,41 +990,54 @@ Steady State is found in a two step procedure:
 
 initial <- rep(1e-4, N_grid * N_species)
 
-std1 <- steady.1D(
-  y = initial,
-  func = model,
-  parms = parameter, 
-  dimens = N_grid,
-  nspec = N_species,
-  names = model_species,
-  positive = TRUE,
-  method = "stodes",
-  diff_coeffs = diffusion_coefficients,
-  adv_vel = advective_velocities,
-  solve_equilibrium = FALSE,
-  precipitation = TRUE
-)
+if (run_std1) {
+  std1 <- steady.1D(
+    y = initial,
+    func = model,
+    parms = parameter, 
+    dimens = N_grid,
+    nspec = N_species,
+    names = model_species,
+    positive = TRUE,
+    method = "stodes",
+    diff_coeffs = diffusion_coefficients,
+    adv_vel = advective_velocities,
+    solve_equilibrium = FALSE,
+    precipitation = TRUE
+  )
+
+  saveRDS(std1, "last_results/std1.rds")
+} else {
+  std1 <- readRDS("last_results/std1.rds")
+}
 ```
 
 ```{r std2}
 #| echo: true
 
-std2 <- steady.1D(
-  y = std1$y,
-  func = model,
-  parms = parameter,
-  dimens = N_grid,
-  nspec = N_species,
-  names = model_species,
-  positive = TRUE,
-  method = "stode", # stode gives back result, even if steady state is not reached
-                    # stodes does not return intermediate result
-  maxiter = 100,
-  diff_coeffs = diffusion_coefficients,
-  adv_vel = advective_velocities,
-  solve_equilibrium = TRUE,
-  precipitation = TRUE
-)
+if (run_std2) {
+  std2 <- steady.1D(
+    y = std1$y,
+    func = model,
+    parms = parameter,
+    dimens = N_grid,
+    nspec = N_species,
+    names = model_species,
+    positive = TRUE,
+    method = "stode", # stode gives back result, even if steady state is not reached
+                      # stodes does not return intermediate result
+    maxiter = 100,
+    diff_coeffs = diffusion_coefficients,
+    adv_vel = advective_velocities,
+    solve_equilibrium = TRUE,
+    precipitation = TRUE
+  )
+
+  saveRDS(std2, "last_results/std2.rds")
+} else {
+  std2 <- readRDS("last_results/std2.rds")
+}
+
 ```
 
 
@@ -1262,13 +1283,13 @@ species_mass_balance_std2 <- species_mass_balance(model_species, std2, grid)
 ```{r print species based mass balances}
 knitr::kable(
   species_mass_balance_std1,
-  caption = "std1",
+  caption = "std1 (mol m-2 yr-1)",
   digits = 25,
   format.args = list(format = "e", digits = 4)
 )
 knitr::kable(
   species_mass_balance_std2,
-  caption = "std2",
+  caption = "std2 (mol m-2 yr-1)",
   digits = 25,
   format.args = list(format = "e", digits = 4)
 )
@@ -1286,53 +1307,6 @@ From this follows, that under stationary conditions the flux in and out of the s
 
 $$\frac{dC_{A,e}}{dt} \; \left( \frac{mol}{m^2 \cdot a} \right) = J(a)_e - J(b)_e = 0$$
 
-**Elemental Composition of Model-Species**
-```{r elemental composition}
-
-elemental_composition <- list(
-  C = data.frame(
-    species = c("DIC", "CH4", "OM", "FeCO3"),
-    stoic   = c(1, 1, 1, 1)
-  ),
-  N = data.frame(
-    species = c("TOT_N5", "TOT_N3", "N2", "OM"),
-    stoic   = c(1, 1, 2, reaction_parameter[["OM_b"]])
-  ),
-  P = data.frame(
-    species = c("TOT_P", "OM", "FeOH3_P"),
-    stoic   = c(1, reaction_parameter[["OM_c"]], reaction_parameter[["lambda"]])
-  ),
-  S = data.frame(
-    species = c("TOT_S6", "TOT_S2", "S0"),
-    stoic   = c(1, 1, 1)
-  ),
-  Fe = data.frame(
-    species = c("Fe2", "FeOH3", "FeOH3_P", "FeCO3"),
-    stoic   = c(1, 1, 1, 1)
-  ),
-  Mn = data.frame(
-    species = c("Mn2", "MnO2"),
-    stoic   = c(1, 1)
-  )
-)
-```
-
-```{r print elemental composition}
-#| layout-ncol: 3
-#| results: "asis"
-
-for (i in seq_len(length(elemental_composition))) {
-  print(knitr::kable(
-    elemental_composition[[i]],
-    caption = names(elemental_composition[i]),
-    digits = 5,
-    valign = "t",
-    booktabs = TRUE
-  ))
-}
-```
-
-**Overview Mass Balance**
 ```{r element based mass balance}
 #| echo: true
 #| code-fold: true
@@ -1422,32 +1396,81 @@ element_mass_balance <- function(elemental_composition, std, grid) {
     detailed = detailed
   ))
 }
-
-element_mass_balance_std1 <- element_mass_balance(elemental_composition, std1, grid)
-element_mass_balance_std2 <- element_mass_balance(elemental_composition, std2, grid)
 ```
 
+#### Elemental Composition of Model-Species
+```{r elemental composition}
+
+elemental_composition <- list(
+  C = data.frame(
+    species = c("DIC", "CH4", "OM", "FeCO3"),
+    stoic   = c(1, 1, 1, 1)
+  ),
+  N = data.frame(
+    species = c("TOT_N5", "TOT_N3", "N2", "OM"),
+    stoic   = c(1, 1, 2, reaction_parameter[["OM_b"]])
+  ),
+  P = data.frame(
+    species = c("TOT_P", "OM", "FeOH3_P"),
+    stoic   = c(1, reaction_parameter[["OM_c"]], reaction_parameter[["lambda"]])
+  ),
+  S = data.frame(
+    species = c("TOT_S6", "TOT_S2", "S0"),
+    stoic   = c(1, 1, 1)
+  ),
+  Fe = data.frame(
+    species = c("Fe2", "FeOH3", "FeOH3_P", "FeCO3"),
+    stoic   = c(1, 1, 1, 1)
+  ),
+  Mn = data.frame(
+    species = c("Mn2", "MnO2"),
+    stoic   = c(1, 1)
+  )
+)
+```
+
+```{r print elemental composition}
+#| layout-ncol: 3
+#| results: "asis"
+
+for (i in seq_len(length(elemental_composition))) {
+  print(knitr::kable(
+    elemental_composition[[i]],
+    caption = names(elemental_composition[i]),
+    digits = 5,
+    valign = "t",
+    booktabs = TRUE
+  ))
+}
+```
+
+#### Overview Mass Balances
 ```{r print element based mass balances: overview}
 #| layout-ncol: 2
 
+element_mass_balance_std1 <- element_mass_balance(elemental_composition, std1, grid)
+element_mass_balance_std2 <- element_mass_balance(elemental_composition, std2, grid)
+
 knitr::kable(
   element_mass_balance_std1$overview,
-  caption = "std1",
+  caption = "std1 (mol m-2 yr-1)",
   digits = 20,
   format.args = list(format = "e", digits = 2),
   valign = "t"
 )
 knitr::kable(
   element_mass_balance_std2$overview,
-  caption = "std2",
+  caption = "std2 (mol m-2 yr-1)",
   digits = 20,
   format.args = list(format = "e", digits = 2),
   valign = "t"
 )
 ```
 
-**Detailed Mass Balance**
-```{r print element based mass balance: detailed}
+#### Detailed Mass Balances
+
+##### std1
+```{r print element based mass balance: detailed std1}
 #| layout-ncol: 3
 #| results: "asis"
 
@@ -1460,6 +1483,12 @@ for (i in seq_len(length(element_mass_balance_std1$detailed))) {
     booktabs = TRUE
   ))
 }
+```
+
+##### std2
+```{r print element based mass balance: detailed std2}
+#| layout-ncol: 3
+#| results: "asis"
 
 for (i in seq_len(length(element_mass_balance_std2$detailed))) {
   print(knitr::kable(
