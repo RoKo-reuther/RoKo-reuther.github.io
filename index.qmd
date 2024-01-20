@@ -1263,14 +1263,14 @@ species_mass_balance_std2 <- species_mass_balance(model_species, std2, grid)
 knitr::kable(
   species_mass_balance_std1,
   caption = "std1",
-  digits = 20,
-  format.args = list(format = "e", digits = 2)
+  digits = 25,
+  format.args = list(format = "e", digits = 4)
 )
 knitr::kable(
   species_mass_balance_std2,
   caption = "std2",
-  digits = 20,
-  format.args = list(format = "e", digits = 2)
+  digits = 25,
+  format.args = list(format = "e", digits = 4)
 )
 ```
 
@@ -1332,6 +1332,7 @@ for (i in seq_len(length(elemental_composition))) {
 }
 ```
 
+**Overview Mass Balance**
 ```{r element based mass balance}
 #| echo: true
 #| code-fold: true
@@ -1426,7 +1427,7 @@ element_mass_balance_std1 <- element_mass_balance(elemental_composition, std1, g
 element_mass_balance_std2 <- element_mass_balance(elemental_composition, std2, grid)
 ```
 
-```{r print element based mass balances}
+```{r print element based mass balances: overview}
 #| layout-ncol: 2
 
 knitr::kable(
@@ -1443,4 +1444,30 @@ knitr::kable(
   format.args = list(format = "e", digits = 2),
   valign = "t"
 )
+```
+
+**Detailed Mass Balance**
+```{r print element based mass balance: detailed}
+#| layout-ncol: 3
+#| results: "asis"
+
+for (i in seq_len(length(element_mass_balance_std1$detailed))) {
+  print(knitr::kable(
+    element_mass_balance_std1$detailed[[i]],
+    caption = paste("std1:", names(element_mass_balance_std1$detailed)[i], "(mol m-2 yr-1)"),
+    digits = 5,
+    valign = "t",
+    booktabs = TRUE
+  ))
+}
+
+for (i in seq_len(length(element_mass_balance_std2$detailed))) {
+  print(knitr::kable(
+    element_mass_balance_std1$detailed[[i]],
+    caption = paste("std2:", names(element_mass_balance_std2$detailed)[i], "(mol m-2 yr-1)"),
+    digits = 5,
+    valign = "t",
+    booktabs = TRUE
+  ))
+}
 ```
