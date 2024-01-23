@@ -5,6 +5,8 @@ project:
 website:
   title: "RoKo-reuther.github.io"
   navbar: false
+  repo-url: https://github.com/RoKo-reuther/RoKo-reuther.github.io
+  repo-actions: [issue]
 
 format:
   html:

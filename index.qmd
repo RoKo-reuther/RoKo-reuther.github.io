@@ -290,14 +290,49 @@ solve_tableau <- function(component_total, tableau, logK, N_grid) {
 #| echo: true
 #| code-fold: true
 
-plot_std_profiles <- function(std) {
+plot_simple_comparision <- function(a, b, a_name, b_name, grid, xlab, ylab, log = "") {
+  plot(
+    grid$x.mid ~ a,
+    ylim = c(max(grid$x.int), min(grid$x.int)),
+    xlim = c(min(a, b), max(a, b)),
+    type = "l",
+    ylab = ylab,
+    xlab = xlab,
+    lwd = 2,
+    col = "gray45",
+    lty = 2,
+    log = log
+  )
+  points(
+    grid$x.mid ~ b,
+    type = "l",
+    lwd = 2,
+    col = "black"
+  )
+  legend(
+    "bottomright",
+    legend = c(a_name, b_name),
+    col = c("gray45", "black"),
+    lwd = 2,
+    lty = c(2, 1),
+    box.lwd = 0
+  )
+}
+
+plot_std_profiles <- function(std_gray, std_black, grid) {
+
+  std_black <- cbind(grid = grid$x.mid, std_black$y)
   
-  plot(std, xyswap = TRUE, xlab = "mol/m3_phase", ylab = "depth (m)",
+  plot(std_gray, xyswap = TRUE, xlab = "mol/m3_phase", ylab = "depth (m)",
        grid = grid$x.mid,
        which = model_species,
+       col = "gray45",
+       lty = 2,
        lwd = 2,
        cex = 1.5,
-       mfrow = c(1,1)
+       mfrow = c(1,1),
+       obs = std_black,
+       obspar = c(type = "l", lwd = 2, col = "black")
   )
 }
 
@@ -401,6 +436,108 @@ plot_std_rate_evolution <- function(std, selection, N_lines) {
           ylab = "rate (mol/(m^3_phase * yr))",
           xlab = "time (a)",
           main = selection)
+}
+```
+
+### Plot Speciation
+
+```{r def plot_speciation}
+#| echo: true
+#| code-fold: true
+
+plot_speciation <- function(speciation, grid) {
+
+  rcols <- viridis::viridis(6)
+
+  matplot(y=grid$x.mid, x = speciation[,3:5],
+    type="l", lwd=2, lty=1,
+    ylim=c(length,0), 
+    col=c(rcols[3], rcols[6], rcols[1]),
+    ylab="depth (m)", 
+    xlab="mol/m3_phase"
+  )
+  legend(
+    x = "topright",
+    legend = c("H2CO3", "HCO3", "CO3"),
+    lty = 1,
+    col = c(rcols[3], rcols[6], rcols[1]),
+    lwd = 2
+  )
+
+  matplot(y=grid$x.mid, x = speciation[,6:9],
+    type="l", lwd=2, lty=1,
+    ylim=c(length,0), 
+    col=c(rcols[3], rcols[6], rcols[1], rcols[4]),
+    ylab="depth (m)", 
+    xlab="mol/m3_phase"
+  )
+  legend(
+    x = "topright",
+    legend = c("H3PO4", "H2PO4-", "HPO42-", "PO43-"),
+    lty = 1,
+    col = c(rcols[3], rcols[6], rcols[1], rcols[4]),
+    lwd = 2
+  )
+
+  matplot(y=grid$x.mid, x = speciation[,10:11],
+    type="l", lwd=2, lty=1,
+    ylim=c(length,0), 
+    col=c(rcols[3], rcols[6]),
+    ylab="depth (m)", 
+    xlab="mol/m3_phase"
+  )
+  legend(
+    x = "topright",
+    legend = c("HNO3", "NO3-"),
+    lty = 1,
+    col = c(rcols[3], rcols[6]),
+    lwd = 2
+  )
+
+  matplot(y=grid$x.mid, x = speciation[,12:13],
+    type="l", lwd=2, lty=1,
+    ylim=c(length,0), 
+    col=c(rcols[3], rcols[6]),
+    ylab="depth (m)", 
+    xlab="mol/m3_phase"
+  )
+  legend(
+    x = "topright",
+    legend = c("NH4+", "NH3"),
+    lty = 1,
+    col = c(rcols[3], rcols[6]),
+    lwd = 2
+  )
+
+  matplot(y=grid$x.mid, x = speciation[,14:16],
+    type="l", lwd=2, lty=1,
+    ylim=c(length,0), 
+    col=c(rcols[3], rcols[6], rcols[1]),
+    ylab="depth (m)", 
+    xlab="mol/m3_phase"
+  )
+  legend(
+    x = "topright",
+    legend = c("H2SO4", "HSO4-", "SO42-"),
+    lty = 1,
+    col = c(rcols[3], rcols[6], rcols[1]),
+    lwd = 2
+  )
+
+  matplot(y=grid$x.mid, x = speciation[,17:19],
+    type="l", lwd=2, lty=1,
+    ylim=c(length,0), 
+    col=c(rcols[3], rcols[6], rcols[1]),
+    ylab="depth (m)", 
+    xlab="mol/m3_phase"
+  )
+  legend(
+    x = "topright",
+    legend = c("H2S", "HS-", "S2-"),
+    lty = 1,
+    col = c(rcols[3], rcols[6], rcols[1]),
+    lwd = 2
+  )
 }
 ```
 
@@ -768,7 +905,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     if (precipitation & solve_equilibrium) {
       omega_siderite <- (Fe2 * CO3) / Ksp_siderite
     } else if (precipitation) {
-      omega_siderite <- (Fe2 * DIC * 0.0001) / Ksp_siderite # !!!
+      omega_siderite <- (Fe2 * (DIC * 0.00057)) / Ksp_siderite
     }
     else {
       omega_siderite <- rep(1, N_grid)
@@ -982,7 +1119,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
 
 Steady State is found in a two step procedure:
 
-1) Solve steady state without equilibrium solver. All reactions are controlled by component-totals. If necessary, pH dependent speciation is estiamted based on **???**
+1) Solve steady state without equilibrium solver. All reactions are controlled by component-totals. If necessary, pH dependent speciation is estimated for pH = 7.
 2) Solve steady state with equilibrium solver. All reaction now are controlled by the actual concentrations.
 
 ```{r std1}
@@ -1037,11 +1174,13 @@ if (run_std2) {
 } else {
   std2 <- readRDS("last_results/std2.rds")
 }
-
 ```
 
 
 #### Profiles: Component-Totals
+
+- std1: gray
+- std2: black
 
 ```{r plot std2}
 #| column: screen-inset
@@ -1049,119 +1188,57 @@ if (run_std2) {
 #| fig.height: 3.5
 #| fig.width: 3.5
 
-plot_std_profiles(std2)
+plot_std_profiles(std1, std2, grid)
 ```
 
 #### Profiles: Speciation
+
+::: {.panel-tabset}
+
+##### std1
+
+```{r std1 speciation}
+#| column: screen-inset
+#| layout-ncol: 3
+#| fig.width: 6
+
+# the first 7 model-species are tableau components
+# In the model we have alkalinity (column 1) - but here we need TOT_H = -ALK
+component_total  <- c(-1*std1$y[,1], std1$y[,2:7])
+
+equilibrium_std1 <- solve_tableau(component_total, tableau, logK, N_grid)
+
+speciation_std1  <- equilibrium_std1$species_conc
+
+plot_speciation(speciation_std1, grid)
+```
+
+
+##### std2
 
 ```{r plot std2 speciation}
 #| column: screen-inset
 #| layout-ncol: 3
 #| fig.width: 6
 
-speciation <- std2$solute_equilibrium$species_conc
-colnames(speciation) <- tableau_species
+speciation_std2 <- std2$solute_equilibrium$species_conc
+colnames(speciation_std2) <- tableau_species
 
-rcols <- viridis::viridis(6)
-
-matplot(y=grid$x.mid, x = speciation[,3:5],
-        type="l", lwd=2, lty=1,
-        ylim=c(length,0), 
-        col=c(rcols[3], rcols[6], rcols[1]),
-        ylab="depth (m)", 
-        xlab="mol/m3_phase"
-        )
-legend(
-  x = "topright",
-  legend = c("H2CO3", "HCO3", "CO3"),
-  lty = 1,
-  col = c(rcols[3], rcols[6], rcols[1]),
-  lwd = 2
-)
-
-matplot(y=grid$x.mid, x = speciation[,6:9],
-        type="l", lwd=2, lty=1,
-        ylim=c(length,0), 
-        col=c(rcols[3], rcols[6], rcols[1], rcols[4]),
-        ylab="depth (m)", 
-        xlab="mol/m3_phase"
-        )
-legend(
-  x = "topright",
-  legend = c("H3PO4", "H2PO4-", "HPO42-", "PO43-"),
-  lty = 1,
-  col = c(rcols[3], rcols[6], rcols[1], rcols[4]),
-  lwd = 2
-)
-
-matplot(y=grid$x.mid, x = speciation[,10:11],
-        type="l", lwd=2, lty=1,
-        ylim=c(length,0), 
-        col=c(rcols[3], rcols[6]),
-        ylab="depth (m)", 
-        xlab="mol/m3_phase"
-        )
-legend(
-  x = "topright",
-  legend = c("HNO3", "NO3-"),
-  lty = 1,
-  col = c(rcols[3], rcols[6]),
-  lwd = 2
-)
-
-matplot(y=grid$x.mid, x = speciation[,12:13],
-        type="l", lwd=2, lty=1,
-        ylim=c(length,0), 
-        col=c(rcols[3], rcols[6]),
-        ylab="depth (m)", 
-        xlab="mol/m3_phase"
-        )
-legend(
-  x = "topright",
-  legend = c("NH4+", "NH3"),
-  lty = 1,
-  col = c(rcols[3], rcols[6]),
-  lwd = 2
-)
-
-matplot(y=grid$x.mid, x = speciation[,14:16],
-        type="l", lwd=2, lty=1,
-        ylim=c(length,0), 
-        col=c(rcols[3], rcols[6], rcols[1]),
-        ylab="depth (m)", 
-        xlab="mol/m3_phase"
-        )
-legend(
-  x = "topright",
-  legend = c("H2SO4", "HSO4-", "SO42-"),
-  lty = 1,
-  col = c(rcols[3], rcols[6], rcols[1]),
-  lwd = 2
-)
-
-matplot(y=grid$x.mid, x = speciation[,17:19],
-        type="l", lwd=2, lty=1,
-        ylim=c(length,0), 
-        col=c(rcols[3], rcols[6], rcols[1]),
-        ylab="depth (m)", 
-        xlab="mol/m3_phase"
-        )
-legend(
-  x = "topright",
-  legend = c("H2S", "HS-", "S2-"),
-  lty = 1,
-  col = c(rcols[3], rcols[6], rcols[1]),
-  lwd = 2
-)
+plot_speciation(speciation_std2, grid)
 ```
+
+:::
+
 
 #### Profile: pH
 
 ```{r plot pH}
 #| out.width: 100%
 
-pH <- -log10(speciation[,1] * 10^-3) # mol/m3 * 10^-3 m3/L
-plot(grid$x.mid ~ pH, ylim = c(0.1, 0), type = "l", ylab = "depth (m)", lwd = 2)
+pH_std1 <- -log10(speciation_std1[,1] * 10^-3) # mol/m3 * 10^-3 m3/L
+pH_std2 <- -log10(speciation_std2[,1] * 10^-3) # mol/m3 * 10^-3 m3/L
+
+plot_simple_comparision(pH_std1, pH_std2, "std1", "std2", grid, "pH", "depth (m)")
 ```
 
 #### Profiles: Saturation
@@ -1169,50 +1246,115 @@ plot(grid$x.mid ~ pH, ylim = c(0.1, 0), type = "l", ylab = "depth (m)", lwd = 2)
 ```{r plot saturation}
 #| out.width: 100%
 
-rcols <- viridis::viridis(2)
+omega_siderite_std1 <- std1$omega_siderite
+omega_siderite_std2 <- std2$omega_siderite
 
-plot(
-    x = std2$omega_siderite,
-    y = grid$x.mid,
-    ylim = c(max(grid$x.int), min(grid$x.int)),
-    type = "l",
-    lwd = 2,
-    col = rcols[1],
-    xlab = "omega siderite",
-    ylab = "depth (m)",
-    log = "x"
-  )
+plot_simple_comparision(omega_siderite_std1, omega_siderite_std2, "std1", "std2", grid, "omega siderite", "depth (m)", "x")
 ```
 
 #### Profiles: Reaction Rates
 
 ##### OM Degradation
-```{r plot rates OM Degradation}
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates OM Degradation std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R1", "R2", "R3", "R4", "R5", "R6"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates OM Degradation std2}
 #| out.width: 100%
 
 plot_std_rates(std2, c("R1", "R2", "R3", "R4", "R5", "R6"))
 ```
+:::
+
+::::
+
+\
 
 ##### Siderite Precipitation
-```{r plot rates Siderite Precip}
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates Siderite Precip std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R7", "R8"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates Siderite Precip std2}
 #| out.width: 100%
 
 plot_std_rates(std2, c("R7", "R8"))
 ```
+:::
+
+::::
+
+\
 
 ##### FeOH3 / FeOH3~H3PO4-reduction coupled to sulphide oxidation
-```{r plot rates FeOH3 reduction}
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates FeOH3 reduction std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R9"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates FeOH3 reduction std2}
 #| out.width: 100%
 
 plot_std_rates(std2, c("R9"))
 ```
+:::
+
+::::
+
+\
 
 ##### FeOH3 / FeOH3~H3PO4-formation
-```{r plot rates FeOH3 formation}
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates FeOH3 formation std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R10"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates FeOH3 formation std2}
 #| out.width: 100%
 
 plot_std_rates(std2, c("R10"))
 ```
+:::
+
+::::
 
 
 ## Mass Balances
@@ -1275,12 +1417,12 @@ species_mass_balance <- function(species_vector, std, grid) {
   
   return(species_based_mass_balance)
 }
-
-species_mass_balance_std1 <- species_mass_balance(model_species, std1, grid)
-species_mass_balance_std2 <- species_mass_balance(model_species, std2, grid)
 ```
 
 ```{r print species based mass balances}
+species_mass_balance_std1 <- species_mass_balance(model_species, std1, grid)
+species_mass_balance_std2 <- species_mass_balance(model_species, std2, grid)
+
 knitr::kable(
   species_mass_balance_std1,
   caption = "std1 (mol m-2 yr-1)",
@@ -1499,4 +1641,65 @@ for (i in seq_len(length(element_mass_balance_std2$detailed))) {
     booktabs = TRUE
   ))
 }
+```
+
+### Depth Integrated Reaction Rates
+
+```{r depth integrated reaction rates}
+#| echo: true
+#| code-fold: true
+
+depth_integrated_reactionrates <- function(std, grid) {
+  
+  integrated_reactionrate <- function(rate, std, grid) {
+    
+    rate_integrated <- sum(std$rates[[rate]] * grid$dx)
+    
+    return(rate_integrated)
+  }
+
+  rates <- names(std$rates)
+  
+  result <- data.frame(
+    "Name" = NULL,
+    "Rate" = NULL
+  )
+  
+  for (rate in rates) {
+  
+    result <- rbind(
+      result,
+      data.frame(
+        "Name" = rate,
+        "Rate" = integrated_reactionrate(rate, std, grid)
+      )
+    )
+  }
+  
+  return(result)
+}
+```
+
+```{r print depth integrated rates}
+#| layout-ncol: 2
+#| results: "asis"
+
+depth_int_rates_std1 <- depth_integrated_reactionrates(std1, grid)
+depth_int_rates_std2 <- depth_integrated_reactionrates(std2, grid)
+
+knitr::kable(
+  depth_int_rates_std1,
+  caption = paste("std1: depth integrated reaction rates (mol m-2 yr-1)"),
+  digits = 5,
+  valign = "t",
+  booktabs = TRUE
+)
+
+knitr::kable(
+  depth_int_rates_std2,
+  caption = paste("std2: depth integrated reaction rates (mol m-2 yr-1)"),
+  digits = 5,
+  valign = "t",
+  booktabs = TRUE
+)
 ```
