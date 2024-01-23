@@ -372,19 +372,6 @@ plot_std_rates <- function(std, reactions, title = "") {
     
   fig
 }
-
-plot_omega <- function(std) {
-  plot(
-    x = std$omega_siderite,
-    y = grid$x.mid,
-    ylim = c(max(grid$x.int), min(grid$x.int)),
-    type = "l",
-    lwd = 2,
-    xlab = "omega siderite",
-    ylab = "depth (m)",
-    log = "x"
-  )
-}
 ```
 
 ### Plot Runge-Kutta results
@@ -451,13 +438,13 @@ plot_speciation <- function(speciation, grid) {
 
   matplot(y=grid$x.mid, x = speciation[,3:5],
     type="l", lwd=2, lty=1,
-    ylim=c(length,0), 
+    ylim=c(length,0),
     col=c(rcols[3], rcols[6], rcols[1]),
     ylab="depth (m)", 
     xlab="mol/m3_phase"
   )
   legend(
-    x = "topright",
+    x = "bottom",
     legend = c("H2CO3", "HCO3", "CO3"),
     lty = 1,
     col = c(rcols[3], rcols[6], rcols[1]),
@@ -472,7 +459,7 @@ plot_speciation <- function(speciation, grid) {
     xlab="mol/m3_phase"
   )
   legend(
-    x = "topright",
+    x = "bottom",
     legend = c("H3PO4", "H2PO4-", "HPO42-", "PO43-"),
     lty = 1,
     col = c(rcols[3], rcols[6], rcols[1], rcols[4]),
@@ -487,7 +474,7 @@ plot_speciation <- function(speciation, grid) {
     xlab="mol/m3_phase"
   )
   legend(
-    x = "topright",
+    x = "bottom",
     legend = c("HNO3", "NO3-"),
     lty = 1,
     col = c(rcols[3], rcols[6]),
@@ -502,7 +489,7 @@ plot_speciation <- function(speciation, grid) {
     xlab="mol/m3_phase"
   )
   legend(
-    x = "topright",
+    x = "bottom",
     legend = c("NH4+", "NH3"),
     lty = 1,
     col = c(rcols[3], rcols[6]),
@@ -517,7 +504,7 @@ plot_speciation <- function(speciation, grid) {
     xlab="mol/m3_phase"
   )
   legend(
-    x = "topright",
+    x = "bottom",
     legend = c("H2SO4", "HSO4-", "SO42-"),
     lty = 1,
     col = c(rcols[3], rcols[6], rcols[1]),
@@ -532,7 +519,7 @@ plot_speciation <- function(speciation, grid) {
     xlab="mol/m3_phase"
   )
   legend(
-    x = "topright",
+    x = "bottom",
     legend = c("H2S", "HS-", "S2-"),
     lty = 1,
     col = c(rcols[3], rcols[6], rcols[1]),
@@ -1198,9 +1185,9 @@ plot_std_profiles(std1, std2, grid)
 ##### std1
 
 ```{r std1 speciation}
-#| column: screen-inset
-#| layout-ncol: 3
-#| fig.width: 6
+#| layout-ncol: 2
+#| fig.height: 3.7
+#| fig.width: 5
 
 # the first 7 model-species are tableau components
 # In the model we have alkalinity (column 1) - but here we need TOT_H = -ALK
@@ -1213,13 +1200,12 @@ speciation_std1  <- equilibrium_std1$species_conc
 plot_speciation(speciation_std1, grid)
 ```
 
-
 ##### std2
 
 ```{r plot std2 speciation}
-#| column: screen-inset
-#| layout-ncol: 3
-#| fig.width: 6
+#| layout-ncol: 2
+#| fig.height: 3.7
+#| fig.width: 5
 
 speciation_std2 <- std2$solute_equilibrium$species_conc
 colnames(speciation_std2) <- tableau_species
