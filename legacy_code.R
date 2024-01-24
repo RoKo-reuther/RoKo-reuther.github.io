@@ -752,3 +752,14 @@ legend(
 pH <- -log10(speciation[,1] * 10^-3)
 plot(grid$x.mid ~ pH, ylim = c(0.1, 0), type = "l", ylab = "depth (m)", lwd = 2)
 ```
+
+### Steady State Visualization
+
+```{mermaid}
+flowchart LR
+  a([SO4]) -- 10 --> b(SO4);
+  b -- 10 --> c(H2S);
+  c -- 10 --> b;
+  c -- 10 --> d(S0);
+  b -- 10 --> e([SO4]);
+```

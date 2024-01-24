@@ -10,10 +10,12 @@ bibliography: FeTreatment.bib
 
 ```{r document switches}
 # load std1 from disk (false) or calculate new (true)
-run_std1 <- FALSE
+run_std1 <- TRUE
+#run_std1 <- FALSE
 
 # load std2 from disk (false) or calculate new (true)
-run_std2 <- FALSE
+run_std2 <- TRUE
+#run_std2 <- FALSE
 ```
 
 ```{r load libraries}
@@ -162,6 +164,23 @@ $\ce{OM^{\alpha, \beta} -> 1/2 CO2 + b NH3 + c H3PO4 + 1/2 CH4}$
 
 $R = k_{\alpha, \beta} \: OM^{\alpha, \beta} \: I_{\ce{SO4^{2-}}} \: I_{\ce{Fe(OH)3^\alpha}} \: I_{\ce{MnO2^{\alpha}}} \: I_{\ce{NO3^-}} \: I_{\ce{O2}}$
 
+## Secondary Redox Reactions
+
+### H2S Oxidation (R11)
+
+$\ce{2 O2 + H2S -> H2SO4}$
+
+$R = k \: [\ce{O2}] \: [\ce{\sum H2S}]$
+
+with $k \geq 1.6 \times 10^2 \: m^3 \: mol^{-1} \: yr^{-1}$ [@wang1996multicomponent]
+
+### SO4-Reduction coupled to AOM (R12)
+
+$\ce{H2SO4 + CH4 -> CO2 + H2S + 2 H2O}$
+
+$R = k \: [\ce{SO4^{2-}}] \: [\ce{CH4}]$
+
+with $k = 10 - 120  \: m^3 \: mol^{-1} \: yr^{-1}$ [@wang1996multicomponent; @rooze2016iron]
 
 ## Redox Precipitation / Dissolution Reactions
 
@@ -171,9 +190,9 @@ $\ce{2 ( \chi Fe(OH)3^{\alpha} + (1-\chi) Fe(OH)3^{\alpha}(H3PO4)_{\lambda} ) + 
 
 $R = k \: [\ce{Fe(OH)3_{; tot}^{\alpha}}] \: [\ce{\sum H2S}] \quad (mol \: {m_{sf}}^{-3} \: yr^{-3})$
 
-with $k \leqq 10^2 \: {m_{pw}}^3 \: mol^{-1} \: yr^{-1}$ [@wang1996multicomponent]
+with $k \leq 10^2 \: {m_{pw}}^3 \: mol^{-1} \: yr^{-1}$ [@wang1996multicomponent]
 
-| unit correct???
+> unit correct???
 
 ### FeOH3 / FeOH3~H3PO4-Formation (R10)
 
@@ -715,7 +734,11 @@ reaction_parameter <- c(
   # FeOH3 / FeOH3~H3PO4-Reduction coupled to Sulphide Oxidation
   k_Fe_red_S_ox = 10**2, # m3 mol-1 yr-1
   # FeOH3 / FeOH3~H3PO4-Formation
-  k_FeOH3_formation = 1.4e2 # m3 mol-1 yr-1
+  k_FeOH3_formation = 1.4e2, # m3 mol-1 yr-1
+  # H2S Oxidation
+  k_H2S_oxidation = 1.6e2, # m3_pw mol-1 yr-1
+  # SO4 Reduction Coupled to AOM
+  k_SO4_reduction = 50 # m3_pw mol-1 yr-1
 )
 ```
 
@@ -891,6 +914,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     ## Siderite: R7 = precipitation, R8 = dissolution
     if (precipitation & solve_equilibrium) {
       omega_siderite <- (Fe2 * CO3) / Ksp_siderite
+      #omega_siderite <- (Fe2 * (DIC * 0.00057)) / Ksp_siderite
     } else if (precipitation) {
       omega_siderite <- (Fe2 * (DIC * 0.00057)) / Ksp_siderite
     }
@@ -901,23 +925,32 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     R8 <- ifelse(omega_siderite < 1, k_diss_siderite * FeCO3 * (1 - omega_siderite)^2, 0)
 
     ## FeOH3 / FeOH3~H3PO4-Reduction coupled to Sulphide Oxidation
-    if (solve_equilibrium) {
-      R9 <- k_Fe_red_S_ox * FeOH3_tot * H2S
-    } else {
-      R9 <- k_Fe_red_S_ox * FeOH3_tot * TOT_S2
-    }
+    R9 <- k_Fe_red_S_ox * FeOH3_tot * TOT_S2
 
     ## FeOH3 / FeOH3~H3PO4-Formation
     R10 <- k_FeOH3_formation * O2 * Fe2
+
+    ## H2S Oxidation
+    R11 <- k_H2S_oxidation * O2 * TOT_S2
+
+    ## SO4-Reduction Coupeld to AOM
+    if (solve_equilibrium) {
+      R12 <- k_SO4_reduction * CH4 * SO4
+      #R12 <- k_SO4_reduction * CH4 * (TOT_S6 * 1)
+    } else {
+      R12 <- k_SO4_reduction * CH4 * (TOT_S6 * 1)
+    }
 
     
     # change of species concentration due to reactions
     ## solutes step1: change of slow-reaction-species (srs), the ones for which
     ## the reactions are formulated, according to reaction stoichiometry
     R.srs_O2    <- (- s2p * R1                   # OM Degradation
-                    - 1 * R10)
+                    - 1 * R10
+                    - 2 * R11)
     R.srs_CO2   <- (s2p * (R1 + R2 + R3 + R4 + R5 + 1/2 * R6)
-                    - s2p * R7 + s2p * R8)  # Siderite Precipitation / Dissolution
+                    - s2p * R7 + s2p * R8  # Siderite Precipitation / Dissolution
+                    + 1 * R12)
     R.srs_NH3   <- OM_b * s2p * (R1 + R2 + R3 + R4 + R5 + R6)
     R.srs_H3PO4 <- (s2p * ( OM_c * (R1 + R2 + R3 + R5 + R6) +
                       (OM_c + (1 - chi) * 4 * lambda) * R4 )
@@ -930,10 +963,15 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
                     + 2 * s2p * R9
                     - 4 * R10)
     R.srs_MnOH2 <- 2 * s2p * R3
-    R.srs_H2SO4 <- - 1/2 * s2p * R5
+    R.srs_H2SO4 <- (- 1/2 * s2p * R5
+                    + 1 * R11
+                    - 1 * R12)
     R.srs_H2S   <- (1/2 * s2p * R5
-                    - 1 * s2p * R9)
-    R.srs_CH4   <- 1/2 * s2p * R6
+                    - 1 * s2p * R9
+                    - 1 * R11
+                    + 1 * R12)
+    R.srs_CH4   <- (1/2 * s2p * R6
+                    - 1 * R12)
     
     ## solutes step2: change of tableau-components = model species
     ## translation of change of slow-reaction-species to change of 
@@ -1077,16 +1115,18 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
           R.S0 = R.S0 * grid.svf$mid
         ),
         rates = list(
-          R1  = R1 * grid.svf$mid,
-          R2  = R2 * grid.svf$mid,
-          R3  = R3 * grid.svf$mid,
-          R4  = R4 * grid.svf$mid,
-          R5  = R5 * grid.svf$mid,
-          R6  = R6 * grid.svf$mid,
-          R7  = R7 * grid.svf$mid,
-          R8  = R8 * grid.svf$mid,
-          R9  = R9 * grid.svf$mid,
-          R10 = R10 * grid.svf$mid
+          R1  = R1  * grid.svf$mid,
+          R2  = R2  * grid.svf$mid,
+          R3  = R3  * grid.svf$mid,
+          R4  = R4  * grid.svf$mid,
+          R5  = R5  * grid.svf$mid,
+          R9  = R9  * grid.svf$mid,
+          R6  = R6  * grid.svf$mid,
+          R7  = R7  * grid.svf$mid,
+          R8  = R8  * grid.svf$mid,
+          R10 = R10 * grid.svf$mid,
+          R11 = R11 * grid.por$mid,
+          R12 = R12 * grid.por$mid
         ),
         solute_equilibrium = solute_equilibrium,
         time_scales = time_scales,
@@ -1215,7 +1255,6 @@ plot_speciation(speciation_std2, grid)
 
 :::
 
-
 #### Profile: pH
 
 ```{r plot pH}
@@ -1259,6 +1298,58 @@ plot_std_rates(std1, c("R1", "R2", "R3", "R4", "R5", "R6"))
 #| out.width: 100%
 
 plot_std_rates(std2, c("R1", "R2", "R3", "R4", "R5", "R6"))
+```
+:::
+
+::::
+
+\
+
+##### H2S Oxidation
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates H2S Oxidation std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R11"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates H2S Oxidation std2}
+#| out.width: 100%
+
+plot_std_rates(std2, c("R11"))
+```
+:::
+
+::::
+
+\
+
+##### SO4-Reduction Coupled to AOM
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates SO4-Reduction std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R12"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates SO4-Reduction std2}
+#| out.width: 100%
+
+plot_std_rates(std2, c("R12"))
 ```
 :::
 
@@ -1620,7 +1711,7 @@ for (i in seq_len(length(element_mass_balance_std1$detailed))) {
 
 for (i in seq_len(length(element_mass_balance_std2$detailed))) {
   print(knitr::kable(
-    element_mass_balance_std1$detailed[[i]],
+    element_mass_balance_std2$detailed[[i]],
     caption = paste("std2:", names(element_mass_balance_std2$detailed)[i], "(mol m-2 yr-1)"),
     digits = 5,
     valign = "t",
@@ -1689,3 +1780,4 @@ knitr::kable(
   booktabs = TRUE
 )
 ```
+
