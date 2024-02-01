@@ -232,6 +232,36 @@ If $\: \Omega < 1$:
 - $R_{dissolution} = - k_{diss} \cdot \ce{[FeCO3]} \cdot (\Omega - 1)^2 \quad$
 with $\quad k_{diss} \approx 2.5 \times 10^{-1} \; yr^{-1}$
 
+### FeS Precipitation (R13) / Dissolution (R14)
+
+Chemically:
+
+$\ce{Fe^{2+}  + HS- <-> FeS + H+}$
+
+In our model:
+
+$\ce{Fe(OH)_2 + H2S <-> FeS + 2 H2O}$
+
+Precipitation and Dissolution are split in two reactions from which only one is active at a time, depending on the saturation state $\Omega$.
+
+$\Omega = \frac{\ce{[Fe^{2+}]} \cdot \ce{[HS^{-}]}}{K_{sp; FeS}} \quad$
+with $\quad K_{sp; FeS} = 10^{-3.915} \cdot 1000^2 \; mol^2 \; m^{-6}$
+
+> **phreeqc.dat**  
+> FeS(ppt) | FeS + H+ = Fe+2 + HS- | log_k	-3.915  
+
+If $\: \Omega > 1$:
+
+- $R_{precipitation} = k_{precip} \cdot (\Omega - 1)^2 \quad$
+with $\quad k_{precip} \approx 2.5 \times 10^{-3} \; mol \; {m_{sf}}^{-3} \; yr^{-1}$ [@markelov2019coupling]
+- $R_{dissolution} = 0$
+
+If $\: \Omega < 1$:
+
+- $R_{precipitation} = 0$
+- $R_{dissolution} = - k_{diss} \cdot \ce{[FeS]} \cdot (\Omega - 1)^2 \quad$
+with $\quad k_{diss} \approx 1 \times 10^{-3} \; yr^{-1}$ [@markelov2019coupling]
+
 
 ## Equilibrium Reactions described via Tableau
 
@@ -254,7 +284,9 @@ logK <- as.vector(unlist(excel[-row_H2O, column_logK]))
 tableau_species <- unlist(excel[,column_species_names])[-1]
 names(tableau_species) <- NULL
 
-model_species <- c("ALK", "DIC", "TOT_P", "TOT_N5", "TOT_N3", "TOT_S6", "TOT_S2", "CH4", "O2", "N2", "Mn2", "Fe2", "MnO2", "OM", "FeOH3", "FeOH3_P", "FeCO3", "S0")
+model_species <- c("ALK", "DIC", "TOT_P", "TOT_N5", "TOT_N3", "TOT_S6", "TOT_S2", "CH4",
+                   "O2", "N2", "Mn2", "Fe2", "MnO2", "OM", "FeOH3", "FeOH3_P", "FeCO3",
+                   "S0", "FeS")
 
 #excel <- read_xlsx("tableau.xlsx", sheet = "translation_table")
 #excel[is.na(excel)] <- 0
@@ -699,7 +731,8 @@ boundary_conditions <- c(
   FeOH3_up   = 10,
   FeOH3_P_up = 10,
   FeCO3_up   = 0,
-  S0_up      = 0
+  S0_up      = 0,
+  FeS_up     = 0
 )
 ```
 
@@ -727,18 +760,28 @@ reaction_parameter <- c(
   K_H3PO4 = 10^-5,
   ## ratio of Fe to P in Fe(OH)_3(H3PO4)_lambda
   lambda  = 0.6,
+
   # Siderite Precipitation / Dissolution
-  k_precip_siderite = 1.8e2, # mol m-3_sf yr-1
-  k_diss_siderite = 2.5e-1,  # yr-1
-  Ksp_siderite = 10**(-10.4) * 1000**2,
+  k_precip_siderite = 1.8e2,  # mol m-3_sf yr-1
+  k_diss_siderite   = 2.5e-1, # yr-1
+  Ksp_siderite      = 10^(-10.4) * 1000^2, # mol2 m-6
+
   # FeOH3 / FeOH3~H3PO4-Reduction coupled to Sulphide Oxidation
   k_Fe_red_S_ox = 10**2, # m3 mol-1 yr-1
+
   # FeOH3 / FeOH3~H3PO4-Formation
   k_FeOH3_formation = 1.4e2, # m3 mol-1 yr-1
+
   # H2S Oxidation
   k_H2S_oxidation = 1.6e2, # m3_pw mol-1 yr-1
+
   # SO4 Reduction Coupled to AOM
-  k_SO4_reduction = 50 # m3_pw mol-1 yr-1
+  k_SO4_reduction = 50, # m3_pw mol-1 yr-1
+
+  # FeS Precipitation / Dissolution
+  k_precip_FeS = 2.5e-3, # mol m-3_sf yr-1
+  k_diss_FeS   = 1e-3,   # yr-1
+  Ksp_FeS      = 10^(-3.915) * 1000^2  # mol2 m-6
 )
 ```
 
@@ -790,6 +833,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     FeOH3_P <- state[((i-1) * N_grid + 1) : (i * N_grid)]; i <- i + 1
     FeCO3   <- state[((i-1) * N_grid + 1) : (i * N_grid)]; i <- i + 1
     S0      <- state[((i-1) * N_grid + 1) : (i * N_grid)]; i <- i + 1
+    FeS     <- state[((i-1) * N_grid + 1) : (i * N_grid)]; i <- i + 1
     
     
     # transport terms
@@ -845,6 +889,9 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
                             v = adv_vel$v, VF = grid.svf, dx = grid)
 
     tran.S0      <- tran.1D(C = S0, flux.up = S0_up, D = diff_coeffs$solid, 
+                            v = adv_vel$v, VF = grid.svf, dx = grid)
+
+    tran.FeS     <- tran.1D(C = FeS, flux.up = FeS_up, D = diff_coeffs$solid, 
                             v = adv_vel$v, VF = grid.svf, dx = grid)
     
     
@@ -940,6 +987,18 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
       R12 <- k_SO4_reduction * CH4 * (TOT_S6 * 1)
     }
 
+    ## FeS: R13 = precipitation, R14 = dissolution
+    if (precipitation & solve_equilibrium) {
+      omega_FeS <- (Fe2 * HS) / Ksp_FeS
+    } else if (precipitation) {
+      omega_FeS <- (Fe2 * (TOT_S2 * 0.6777462)) / Ksp_FeS
+    }
+    else {
+      omega_FeS <- rep(1, N_grid)
+    }
+    R13 <- ifelse(omega_FeS > 1, k_precip_FeS * (omega_FeS - 1)^2, 0)
+    R14 <- ifelse(omega_FeS < 1, k_diss_FeS * FeS * (1 - omega_FeS)^2, 0)
+
     
     # change of species concentration due to reactions
     ## solutes step1: change of slow-reaction-species (srs), the ones for which
@@ -960,7 +1019,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     R.srs_FeOH2 <- (4 * s2p * R4                # OM degradation
                     - s2p * R7 + s2p * R8       # Siderite Precipitation / Dissolution
                     + 2 * s2p * R9
-                    - 4 * R10)
+                    - 4 * R10
+                    - s2p * R13 + s2p * R14)
     R.srs_MnOH2 <- 2 * s2p * R3
     R.srs_H2SO4 <- (- 1/2 * s2p * R5
                     + 1 * R11
@@ -968,7 +1028,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     R.srs_H2S   <- (1/2 * s2p * R5
                     - 1 * s2p * R9
                     - 1 * R11
-                    + 1 * R12)
+                    + 1 * R12
+                    - s2p * R13 + s2p * R14)
     R.srs_CH4   <- (1/2 * s2p * R6
                     - 1 * R12)
     
@@ -1001,6 +1062,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
                   + 4 * L_H3PO4 * p2s * R10)
     R.FeCO3 <- R7 - R8
     R.S0 <- R9
+    R.FeS <- R13 - R14
     
     # total change in concentration of model species
     dCdt.ALK    <- R.ALK + tran.ALK$dC
@@ -1021,6 +1083,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     dCdt.FeOH3_P <- R.FeOH3_P + tran.FeOH3_P$dC
     dCdt.FeCO3  <- R.FeCO3 + tran.FeCO3$dC
     dCdt.S0     <- R.S0 + tran.S0$dC
+    dCdt.FeS    <- R.FeS + tran.FeS$dC
     
     # characteristic time scales
     # if dCdt.X = 0 -> timescale will be Inf
@@ -1042,7 +1105,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
       FeOH3 = FeOH3 / dCdt.FeOH3,
       FeOH3_P = FeOH3_P / dCdt.FeOH3_P,
       FeCO3 = FeCO3 / dCdt.FeCO3,
-      S0 = S0 / dCdt.S0
+      S0 = S0 / dCdt.S0,
+      FeS = FeS / dCdt.FeS
     )
     # but we need to take the absolute value to find the correct minimum
     time_scales <- abs(time_scales)
@@ -1071,7 +1135,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
           dCdt.FeOH3 = dCdt.FeOH3,
           dCdt.FeOH3_P = dCdt.FeOH3_P,
           dCdt.FeCO3 = dCdt.FeCO3,
-          dCdt.S0 = dCdt.S0
+          dCdt.S0 = dCdt.S0,
+          dCdt.FeS = dCdt.FeS
         ),
         transport = list(
           tran.ALK = tran.ALK,
@@ -1091,7 +1156,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
           tran.FeOH3 = tran.FeOH3,
           tran.FeOH3_P = tran.FeOH3_P,
           tran.FeCO3 = tran.FeCO3,
-          tran.S0 = tran.S0
+          tran.S0 = tran.S0,
+          tran.FeS = tran.FeS
         ),
         sumR = list(
           R.ALK     = R.ALK * grid.por$mid,
@@ -1111,7 +1177,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
           R.FeOH3   = R.FeOH3 * grid.svf$mid,
           R.FeOH3_P = R.FeOH3_P * grid.svf$mid,
           R.FeCO3   = R.FeCO3 * grid.svf$mid,
-          R.S0 = R.S0 * grid.svf$mid
+          R.S0      = R.S0 * grid.svf$mid,
+          R.FeS     = R.FeS * grid.svf$mid
         ),
         rates = list(
           R1  = R1  * grid.svf$mid,
@@ -1125,13 +1192,16 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
           R8  = R8  * grid.svf$mid,
           R10 = R10 * grid.svf$mid,
           R11 = R11 * grid.por$mid,
-          R12 = R12 * grid.por$mid
+          R12 = R12 * grid.por$mid,
+          R13 = R13 * grid.svf$mid,
+          R14 = R14 * grid.svf$mid
+        ),
+        omega = list(
+          siderite = omega_siderite,
+          FeS = omega_FeS
         ),
         solute_equilibrium = solute_equilibrium,
-        time_scales = time_scales,
-        omega_siderite = omega_siderite,
-        timescale_Fe2 = Fe2 / dCdt.Fe2,
-        dCdt_Fe2 = dCdt.Fe2
+        time_scales = time_scales
       )
     )
  })
@@ -1268,12 +1338,31 @@ plot_simple_comparision(pH_std1, pH_std2, "std1", "std2", grid, "pH", "depth (m)
 #### Profiles: Saturation
 
 ```{r plot saturation}
-#| out.width: 100%
+#| layout-ncol: 2
+#| fig.height: 4.2
+#| fig.width: 5
 
-omega_siderite_std1 <- std1$omega_siderite
-omega_siderite_std2 <- std2$omega_siderite
+plot_simple_comparision(
+  a = std1$omega$siderite,
+  b = std2$omega$siderite,
+  a_name = "std1",
+  b_name = "std2",
+  grid = grid,
+  xlab = "omega siderite",
+  ylab = "depth (m)",
+  log = "x"
+)
 
-plot_simple_comparision(omega_siderite_std1, omega_siderite_std2, "std1", "std2", grid, "omega siderite", "depth (m)", "x")
+plot_simple_comparision(
+  a = std1$omega$FeS,
+  b = std2$omega$FeS,
+  a_name = "std1",
+  b_name = "std2",
+  grid = grid,
+  xlab = "omega FeS",
+  ylab = "depth (m)",
+  log = "x"
+)
 ```
 
 #### Profiles: Reaction Rates
@@ -1427,6 +1516,32 @@ plot_std_rates(std1, c("R10"))
 #| out.width: 100%
 
 plot_std_rates(std2, c("R10"))
+```
+:::
+
+::::
+
+\
+
+##### FeS Precipitation / Dissolution
+
+:::: {.columns}
+
+::: {.column}
+**std1**
+```{r plot rates Fes precip/diss std1}
+#| out.width: 100%
+
+plot_std_rates(std1, c("R13", "R14"))
+```
+:::
+
+::: {.column}
+**std2**
+```{r plot rates FeS precip/diss std2}
+#| out.width: 100%
+
+plot_std_rates(std2, c("R13", "R14"))
 ```
 :::
 
@@ -1633,12 +1748,12 @@ elemental_composition <- list(
     stoic   = c(1, reaction_parameter[["OM_c"]], reaction_parameter[["lambda"]])
   ),
   S = data.frame(
-    species = c("TOT_S6", "TOT_S2", "S0"),
-    stoic   = c(1, 1, 1)
+    species = c("TOT_S6", "TOT_S2", "S0", "FeS"),
+    stoic   = c(1, 1, 1, 1)
   ),
   Fe = data.frame(
-    species = c("Fe2", "FeOH3", "FeOH3_P", "FeCO3"),
-    stoic   = c(1, 1, 1, 1)
+    species = c("Fe2", "FeOH3", "FeOH3_P", "FeCO3", "FeS"),
+    stoic   = c(1, 1, 1, 1, 1)
   ),
   Mn = data.frame(
     species = c("Mn2", "MnO2"),
