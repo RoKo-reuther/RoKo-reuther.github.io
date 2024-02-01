@@ -685,7 +685,7 @@ boundary_conditions <- c(
   DIC_up   = 2,
   CH4_up   = 0,
   H2PO4_up = 0,
-  NO3_up   = 0.2,
+  NO3_up   = 5.2,
   NH4_up   = 0.001,
   SO4_up   = 28,
   O2_up    = 0.3,
@@ -861,18 +861,19 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
       HCO3  <- solute_equilibrium$species_conc[,4]
       CO3   <- solute_equilibrium$species_conc[,5]
       H3PO4 <- solute_equilibrium$species_conc[,6]
-      HPO4  <- solute_equilibrium$species_conc[,7]
-      PO4   <- solute_equilibrium$species_conc[,8]
-      HNO3  <- solute_equilibrium$species_conc[,9]
-      NO3   <- solute_equilibrium$species_conc[,10]
-      NH4   <- solute_equilibrium$species_conc[,11]
-      NH3   <- solute_equilibrium$species_conc[,12]
-      H2SO4 <- solute_equilibrium$species_conc[,13]
-      HSO4  <- solute_equilibrium$species_conc[,14]
-      SO4   <- solute_equilibrium$species_conc[,15]
-      H2S   <- solute_equilibrium$species_conc[,16]
-      HS    <- solute_equilibrium$species_conc[,17]
-      S2    <- solute_equilibrium$species_conc[,18]
+      H2PO4 <- solute_equilibrium$species_conc[,7]
+      HPO4  <- solute_equilibrium$species_conc[,8]
+      PO4   <- solute_equilibrium$species_conc[,9]
+      HNO3  <- solute_equilibrium$species_conc[,10]
+      NO3   <- solute_equilibrium$species_conc[,11]
+      NH4   <- solute_equilibrium$species_conc[,12]
+      NH3   <- solute_equilibrium$species_conc[,13]
+      H2SO4 <- solute_equilibrium$species_conc[,14]
+      HSO4  <- solute_equilibrium$species_conc[,15]
+      SO4   <- solute_equilibrium$species_conc[,16]
+      H2S   <- solute_equilibrium$species_conc[,17]
+      HS    <- solute_equilibrium$species_conc[,18]
+      S2    <- solute_equilibrium$species_conc[,19]
     } else {
       solute_equilibrium <- NA
     }
@@ -914,7 +915,6 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     ## Siderite: R7 = precipitation, R8 = dissolution
     if (precipitation & solve_equilibrium) {
       omega_siderite <- (Fe2 * CO3) / Ksp_siderite
-      #omega_siderite <- (Fe2 * (DIC * 0.00057)) / Ksp_siderite
     } else if (precipitation) {
       omega_siderite <- (Fe2 * (DIC * 0.00057)) / Ksp_siderite
     }
@@ -936,7 +936,6 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     ## SO4-Reduction Coupeld to AOM
     if (solve_equilibrium) {
       R12 <- k_SO4_reduction * CH4 * SO4
-      #R12 <- k_SO4_reduction * CH4 * (TOT_S6 * 1)
     } else {
       R12 <- k_SO4_reduction * CH4 * (TOT_S6 * 1)
     }
