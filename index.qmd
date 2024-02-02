@@ -360,6 +360,7 @@ speciation_ratios <- function(pH, tableau, tableau_species, logK) {
   # calculate ratios of interest
   with(species_conc, {
     ratios <- c(
+      fixed_H = 10^-pH * 10^3,
       f_H2CO3 = H2CO3 / sum(H2CO3, HCO3, CO3),
       f_HCO3  =  HCO3 / sum(H2CO3, HCO3, CO3),
       f_CO3   =   CO3 / sum(H2CO3, HCO3, CO3),
@@ -648,8 +649,8 @@ porFun.S  <- function(x, por.SWI, por.deep, porcoef) {
   return( 1 - porFun.L(x, por.SWI, por.deep, porcoef) ) 
 }
 
-por.swi  <- 0.8
-por.deep <- 0.8
+por.swi  <- 0.5
+por.deep <- 0.5
 
 grid.por <- setup.prop.1D(func = porFun.L, grid = grid, por.SWI = por.swi,
                            por.deep=por.deep, porcoef=100)
@@ -686,7 +687,7 @@ advective_velocities <- setup.compaction.1D(
 salinity    <- 35 # (psu)
 temperature <- 20 # (dgC)
 pressure    <- 1.013253 # (bar)
-Db          <- 5e-4 # mixing rate of the sediment; Bioturbation coefficient (m2/y)
+Db          <- 0.01 * 5e-4 # mixing rate of the sediment; Bioturbation coefficient (m2/y)
 Db_mid      <- 0.5  # middle of Db decreasing zone (m)
 Db_width    <- 0.01 # width of Db decreasing zone (m)
 
@@ -756,23 +757,23 @@ plot(x=diffusion_coefficients$O2, y=grid$x.int, type="l",
 
 boundary_conditions <- c(
   # Alkalinity in eq/m3?
-  ALK_up   = 2,
+  ALK_up   = 1.8,
   # Solutes: concentrations in mol m-3
   DIC_up   = 2,
   CH4_up   = 0,
   H2PO4_up = 0.00235,
-  NO3_up   = 1,
+  NO3_up   = 0.1,
   NH4_up   = 0.001,
-  SO4_up   = 0.02,
+  SO4_up   = 0.2,
   O2_up    = 0.3,
   N2_up    = 0,
   Mn2_up   = 9.9e-5,
   Fe2_up   = 8e-5,
-  H2S_up   = 0.05,
+  H2S_up   = 0,
   # Solids: flux in mol m-2 yr-1
   OM_up      = 0.013 * 365,
-  MnO2_up    = 1,
-  FeOH3_up   = 2,
+  MnO2_up    = 0.05,
+  FeOH3_up   = 0.2,
   FeOH3_P_up = 0,
   FeCO3_up   = 0,
   S0_up      = 0,
@@ -825,7 +826,7 @@ reaction_parameter <- c(
   # FeS Precipitation / Dissolution
   k_precip_FeS = 2.5e-3, # mol m-3_sf yr-1
   k_diss_FeS   = 1e-3,   # yr-1
-  Ksp_FeS      = 10^(-3.915) * 1000^2  # mol2 m-6
+  Ksp_FeS      = 10^(-3.915) * 1000  # mol m-3
 )
 ```
 
@@ -949,7 +950,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
       # 2) solve tableau
       solute_equilibrium  <- solve_tableau(solute_totals, tableau, logK, N_grid)
       # 3) assign results
-      pH    <- -log10(solute_equilibrium$species_conc[,1] * 10^-3)
+      H     <- solute_equilibrium$species_conc[,1]
+      pH    <- -log10(H * 10^-3)
       OH    <- solute_equilibrium$species_conc[,2]
       H2CO3 <- solute_equilibrium$species_conc[,3]
       HCO3  <- solute_equilibrium$species_conc[,4]
@@ -1036,9 +1038,9 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
 
     ## FeS: R13 = precipitation, R14 = dissolution
     if (precipitation & solve_equilibrium) {
-      omega_FeS <- (Fe2 * HS) / Ksp_FeS
+      omega_FeS <- (Fe2 * HS / H) / Ksp_FeS
     } else if (precipitation) {
-      omega_FeS <- (Fe2 * (TOT_S2 * f_HS)) / Ksp_FeS
+      omega_FeS <- (Fe2 * (TOT_S2 * f_HS / fixed_H)) / Ksp_FeS
     }
     else {
       omega_FeS <- rep(1, N_grid)
