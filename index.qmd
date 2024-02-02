@@ -335,7 +335,51 @@ solve_tableau <- function(component_total, tableau, logK, N_grid) {
 }
 ```
 
-### Plot steady.1D results
+### Calculate Speciation-Ratios for Fixed pH
+
+```{r}
+#| echo: true
+#| code-fold: true
+
+speciation_ratios <- function(pH, tableau, tableau_species, logK) {
+
+  # determine number of total components TOT_X in tableau
+  N_components <- ncol(tableau)
+
+  # prepare vector with "component-concentrations"
+  # here we are only interested in ratios at a fixed pH ...
+  # so the only one that matters is the first one: TOT_H; the rest is set to 1
+  component_conc <- c(log10(10^-pH * 10^3), rep(1, N_components - 1))
+
+  # calculate species concentrations
+  species_conc <- as.list(10**(tableau %*% component_conc + logK))
+
+  # name entries
+  names(species_conc) <- tableau_species
+
+  # calculate ratios of interest
+  with(species_conc, {
+    ratios <- c(
+      f_H2CO3 = H2CO3 / sum(H2CO3, HCO3, CO3),
+      f_HCO3  =  HCO3 / sum(H2CO3, HCO3, CO3),
+      f_CO3   =   CO3 / sum(H2CO3, HCO3, CO3),
+      f_H2S   =   H2S / sum(H2S, HS, S2),
+      f_HS    =    HS / sum(H2S, HS, S2),
+      f_S2    =    S2 / sum(H2S, HS, S2),
+      f_H3PO4 = H3PO4 / sum(H3PO4, H2PO4, HPO4, PO4),
+      f_H2PO4 = H2PO4 / sum(H3PO4, H2PO4, HPO4, PO4),
+      f_HPO4  = HPO4  / sum(H3PO4, H2PO4, HPO4, PO4),
+      f_PO4   = PO4   / sum(H3PO4, H2PO4, HPO4, PO4),
+      f_NH4   = NH4   / sum(NH4, NH3),
+      f_NH3   = NH3   / sum(NH4, NH3)
+    )
+
+    return(ratios)
+  })
+}
+```
+
+### Plot steady.1D Results
 
 ```{r def plot functions 1}
 #| echo: true
@@ -425,7 +469,7 @@ plot_std_rates <- function(std, reactions, title = "") {
 }
 ```
 
-### Plot Runge-Kutta results
+### Plot Runge-Kutta Results
 
 ```{r def plot functions 2}
 #| echo: true
@@ -789,11 +833,14 @@ reaction_parameter <- c(
 ```{r collect inputs}
 #| echo: true
 
+ratios_pH7 <- speciation_ratios(pH = 7, tableau, tableau_species, logK)
+
 parameter <- c(
   N_grid = N_grid,
   conversion_factors,
   boundary_conditions,
   reaction_parameter,
+  ratios_pH7,
   logK = logK,
   tableau = tableau
 )
@@ -963,7 +1010,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     if (precipitation & solve_equilibrium) {
       omega_siderite <- (Fe2 * CO3) / Ksp_siderite
     } else if (precipitation) {
-      omega_siderite <- (Fe2 * (DIC * 0.00057)) / Ksp_siderite
+      omega_siderite <- (Fe2 * (DIC * f_CO3)) / Ksp_siderite
     }
     else {
       omega_siderite <- rep(1, N_grid)
@@ -991,7 +1038,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     if (precipitation & solve_equilibrium) {
       omega_FeS <- (Fe2 * HS) / Ksp_FeS
     } else if (precipitation) {
-      omega_FeS <- (Fe2 * (TOT_S2 * 0.6777462)) / Ksp_FeS
+      omega_FeS <- (Fe2 * (TOT_S2 * f_HS)) / Ksp_FeS
     }
     else {
       omega_FeS <- rep(1, N_grid)
