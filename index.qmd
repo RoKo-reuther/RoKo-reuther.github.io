@@ -28,6 +28,14 @@ require(microbenchmark)
 require(plotly)
 ```
 
+## Quick Info
+
+- next meeting: 09.02 10:30
+- next steps:
+  - adding Vivianite,
+  - look into the bioturbation problem (discriminate between advective and diffusive flux) and
+  - try to run a first dynamic scenario and see how far we can go
+
 ## Concept
 
 ### Reactions
