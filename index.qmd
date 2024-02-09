@@ -9,6 +9,10 @@ bibliography: FeTreatment.bib
 ---
 
 ```{r document switches}
+# load std0 from disk (false) or calculate new (true)
+run_std0 <- TRUE
+#run_std0 <- FALSE
+
 # load std1 from disk (false) or calculate new (true)
 run_std1 <- TRUE
 #run_std1 <- FALSE
@@ -725,9 +729,9 @@ advective_velocities <- setup.compaction.1D(
 salinity    <- 35 # (psu)
 temperature <- 20 # (dgC)
 pressure    <- 1.013253 # (bar)
-Db          <- 0.01 * 5e-4 # mixing rate of the sediment; Bioturbation coefficient (m2/y)
-Db_mid      <- 0.5  # middle of Db decreasing zone (m)
-Db_width    <- 0.01 # width of Db decreasing zone (m)
+Db          <- 1e-5  # mixing rate of the sediment; Bioturbation coefficient (m2/y); 1e-5 - 0.01 (Katsev 2006)
+Db_mid      <- 0.025 # middle of Db decreasing zone (m)
+Db_width    <- 0.05  # width of Db decreasing zone (m)
 
 grid.Db <- setup.prop.1D(
     func = p.sig,
@@ -738,9 +742,9 @@ grid.Db <- setup.prop.1D(
     grid = grid
 )
 
-tortuosity_squared <- 1-log(grid.por$int^2)
+tortuosity_squared <- 1 - log(grid.por$int^2)
 
-s2yr <- 3600*24*365.25
+s2yr <- 3600 * 24 * 365.25
 
 diffcoeff_species <- c("HCO3", "HCO3", "CH4", "H2PO4", "NO3", "NH4", "SO4",
                        "O2", "Mn", "Fe", "H2S", "N2")
@@ -1345,19 +1349,46 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
 
 ### 1) Steady State
 
-Steady State is found in a two step procedure:
+Steady State is found in a three step procedure:
 
+0) Solve steady state without precipitation reactions and without equilibrium solver.
 1) Solve steady state without equilibrium solver. All reactions are controlled by component-totals. If necessary, pH dependent speciation is estimated for pH = 7.
 2) Solve steady state with equilibrium solver. All reaction now are controlled by the actual concentrations.
 
-```{r std1}
+```{r std0}
 #| echo: true
 
 initial <- rep(1e-4, N_grid * N_species)
 
+if (run_std0) {
+  std0 <- steady.1D(
+    y = initial,
+    func = model,
+    parms = parameter, 
+    dimens = N_grid,
+    nspec = N_species,
+    names = model_species,
+    positive = TRUE,
+    method = "stode",
+    diff_coeffs = diffusion_coefficients,
+    adv_vel = advective_velocities,
+    solve_equilibrium = FALSE,
+    precipitation = FALSE
+  )
+
+  saveRDS(std0, "last_results/std0.rds")
+
+} else {
+  std0 <- readRDS("last_results/std0.rds")
+}
+```
+
+```{r std1}
+#| echo: true
+
 if (run_std1) {
   std1 <- steady.1D(
-    y = initial,
+    y = as.vector(std0$y),
     func = model,
     parms = parameter, 
     dimens = N_grid,
@@ -1372,6 +1403,7 @@ if (run_std1) {
   )
 
   saveRDS(std1, "last_results/std1.rds")
+
 } else {
   std1 <- readRDS("last_results/std1.rds")
 }
@@ -1382,7 +1414,7 @@ if (run_std1) {
 
 if (run_std2) {
   std2 <- steady.1D(
-    y = std1$y,
+    y = as.vector(std1$y),
     func = model,
     parms = parameter,
     dimens = N_grid,
@@ -1399,6 +1431,7 @@ if (run_std2) {
   )
 
   saveRDS(std2, "last_results/std2.rds")
+
 } else {
   std2 <- readRDS("last_results/std2.rds")
 }
