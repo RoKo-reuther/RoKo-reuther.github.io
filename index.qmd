@@ -10,16 +10,20 @@ bibliography: FeTreatment.bib
 
 ```{r document switches}
 # load std0 from disk (false) or calculate new (true)
-run_std0 <- TRUE
-#run_std0 <- FALSE
+#run_std0 <- TRUE
+run_std0 <- FALSE
 
 # load std1 from disk (false) or calculate new (true)
-run_std1 <- TRUE
-#run_std1 <- FALSE
+#run_std1 <- TRUE
+run_std1 <- FALSE
 
 # load std2 from disk (false) or calculate new (true)
-run_std2 <- TRUE
-#run_std2 <- FALSE
+#run_std2 <- TRUE
+run_std2 <- FALSE
+
+# load trans from disk (false) or calculate new (true)
+#run_trans <- TRUE
+run_trans <- FALSE
 ```
 
 ```{r load libraries}
@@ -666,6 +670,92 @@ plot_speciation <- function(speciation, grid) {
 }
 ```
 
+### Split dynamic model results
+
+```{r def split_trans_results}
+#| echo: true
+#| code-fold: true
+
+split_trans_results <- function(trans, grid) {
+
+  res     <- list()
+  N_grid  <- attr(trans, "dimens")
+  N_spec  <- attr(trans, "nspec")
+
+  # extract blocks
+
+  ## time stamps
+  times    <- trans[,1]
+  N_times  <- length(times)
+
+  ## species concentrations
+  start <- 2
+  end   <- 2 + N_grid * N_spec - 1
+
+  res[["species"]] <- data.frame(
+    name  = rep(attr(trans, "ynames"), each = N_times * N_grid),
+    value = as.vector(trans[,start:end]),
+    time  = rep(times, N_grid * N_spec),
+    depth = rep(rep(grid$x.mid, each = N_times), N_spec)
+  )
+  
+
+  return(res)
+
+}
+```
+
+### Plot dynamic concentrations (contour)
+
+```{r def plot_trans_conc_contour}
+#| echo: true
+#| code-fold: true
+
+plot_trans_conc_contour <- function(trans_res, species) {
+
+  data <- subset(trans_res$species, name == species)
+
+  fig <- plot_ly(data, x = ~time, y = ~depth, z = ~value, type = "contour")
+
+  fig <- fig %>% layout(
+    title = list(text = paste(species, " (mol/(m3_phase))"), yanchor = "top", y = 1),
+    xaxis = list(title = "time (yr)"),
+    yaxis = list(title = "depth (m)", range = c(max(data$depth),0)),
+    font = list(size = 16)
+  )
+
+  fig
+}
+```
+
+### Plot dynamic concentrations (lines)
+
+```{r def plot_trans_conc_lines}
+#| echo: true
+#| code-fold: true
+
+plot_trans_conc_lines <- function(trans_res, species, timesteps) {
+
+  data <- subset(trans_res$species, name == species)
+
+  fig <- plot_ly(type = 'scatter', mode = 'lines', line = list(width = 3))
+
+  for (timestep in timesteps) {
+    depth <- subset(data, time == timestep)$depth
+    value <- subset(data, time == timestep)$value
+    fig   <- fig %>% add_trace(y = ~depth, x = ~value, name = toString(timestep))
+  }
+
+  fig <- fig %>% layout(
+    xaxis = list(title = paste(species, " (mol/(m3_phase))")),
+    yaxis = list(title = "depth (m)", range = c(max(data$depth),0)),
+    font = list(size = 16)
+  )
+
+  fig
+}
+```
+
 
 ## Model Setup
 
@@ -815,7 +905,7 @@ boundary_conditions <- c(
   # Solids: flux in mol m-2 yr-1
   OM_up      = 0.013 * 365,
   MnO2_up    = 0.05,
-  FeOH3_up   = 0.2,
+  FeOH3_up   = function(t) {0.2 + ifelse(t >= 1/12 & t <= 2/12, 0.2 + 21.6, 0)},
   FeOH3_P_up = 0,
   FeCO3_up   = 0,
   S0_up      = 0,
@@ -975,7 +1065,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     tran.OM      <- tran.1D(C = OM, flux.up = OM_up, D = diff_coeffs$solid, 
                             v = adv_vel$v, VF = grid.svf, dx = grid)
     
-    tran.FeOH3   <- tran.1D(C = FeOH3, flux.up = FeOH3_up, D = diff_coeffs$solid, 
+    tran.FeOH3   <- tran.1D(C = FeOH3, flux.up = FeOH3_up(t), D = diff_coeffs$solid, 
                             v = adv_vel$v, VF = grid.svf, dx = grid)
     
     tran.FeOH3_P <- tran.1D(C = FeOH3_P, flux.up = FeOH3_P_up, D = diff_coeffs$solid, 
@@ -1751,6 +1841,81 @@ plot_std_rates(std2, c("R15", "R16"))
 :::
 
 ::::
+
+
+### 2) Dynamic Scenario
+
+The dynamic scenario is initialized with the results of std2.
+For now the only dynamic parameters is the flux of $\ce{Fe(OH)3}$ at the top.
+
+In February of the first year 100g (~1.8 mol) are added. The total added mass is calculated as
+```{r FeOH3_up eq.1}
+#| echo: true
+#| eval: false
+
+added mass [mol/m²] = flux [mol/(m²*yr)] * timespan [yr]
+```
+
+Therefore the specified flux in February is
+```{r FeOH3_up eq.2}
+#| echo: true
+#| eval: false
+
+flux [mol/(m²*yr)] = 1.8 [mol/m²] / (1/12) [yr] = 21.6 [mol/(m²*yr)]
+```
+
+```{r trans}
+#| echo: true
+
+timesteps <- seq(from = 0, to = 0.1, by = 1/12)
+
+if (run_trans) {
+  trans <- ode.1D(
+    y = as.vector(std2$y), 
+    time = timesteps, 
+    func = model, 
+    parms = parameter,
+    dimens = N_grid,
+    nspec = N_species,
+    names = model_species,
+    #method = "lsoda", 
+    #verbose = TRUE, 
+    diff_coeffs = diffusion_coefficients,
+    adv_vel = advective_velocities,
+    solve_equilibrium = TRUE,
+    precipitation = TRUE
+  )
+
+  saveRDS(trans, "last_results/trans.rds")
+
+} else {
+  trans <- readRDS("last_results/trans.rds")
+}
+```
+
+```{r plot trans conc contour}
+
+trans_split <- split_trans_results(trans, grid)
+
+#contour_plots <- list()
+
+#for (species in model_species) {
+#  contour_plots[[species]] <- plot_trans_conc_contour(trans_split, species)
+#}
+
+plot_trans_conc_contour(trans_split, "FeOH3")
+
+plot_trans_conc_contour(trans_split, "Viv")
+
+plot_trans_conc_lines(trans_split, "FeOH3", c(0/12, 3/12, 6/12, 9/12, 1))
+
+#plot(
+#  x = subset(trans_split$species, name == "FeOH3" & time == 0)$value,
+#  y = subset(trans_split$species, name == "FeOH3" & time == 0)$depth,
+#  type = "l",
+#  ylim = c(0.1, 0)
+#)
+```
 
 
 ## Mass Balances
