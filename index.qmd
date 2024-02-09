@@ -1517,6 +1517,7 @@ plot_simple_comparision(
   ylab = "depth (m)",
   log = "x"
 )
+abline(v = 1, lwd = 2, col = "red")
 
 plot_simple_comparision(
   a = std1$omega$FeS,
@@ -1528,6 +1529,7 @@ plot_simple_comparision(
   ylab = "depth (m)",
   log = "x"
 )
+abline(v = 1, lwd = 2, col = "red")
 
 plot_simple_comparision(
   a = std1$omega$Viv,
@@ -1538,7 +1540,8 @@ plot_simple_comparision(
   xlab = "omega Viv",
   ylab = "depth (m)",
   log = "x"
-) 
+)
+abline(v = 1, lwd = 2, col = "red")
 ```
 
 #### Profiles: Reaction Rates
