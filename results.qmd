@@ -1,0 +1,31 @@
+---
+title: "Results"
+
+engine: knitr
+
+filters:
+  - shinylive
+  - webr
+
+format:
+  html:
+    resources: 
+      - shinylive-sw.js
+---
+
+```{webr-r}
+#| context: setup
+
+download_model_result <- function(url) {
+  download.file(url, "temp.csv")
+  read.csv("temp.csv", sep = ",")
+}
+
+std0 <- download_model_result("https://raw.githubusercontent.com/RoKo-reuther/RoKo-reuther.github.io/main/last_results/std0.csv")
+```
+
+```{webr-r}
+# Try stuff like
+#std.val(species = "Fe2", depth = c(0.2:0.3))
+```
+

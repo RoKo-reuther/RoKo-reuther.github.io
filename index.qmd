@@ -1,12 +1,7 @@
 ---
 title: "Fe Treatment Model"
-
-execute:
-  echo: false
-  eval: true
-
-bibliography: FeTreatment.bib
 ---
+
 
 ```{r document switches}
 # load std0 from disk (false) or calculate new (true)
@@ -38,7 +33,7 @@ require(plotly)
 
 ## Quick Info
 
-- next meeting: 14.02.2024 09:30
+- next meeting: 14.02.2024 | 09:30
 - next steps:
   - add CaCO3 and Apatite
   - expand model grid to ~50cm
@@ -351,6 +346,30 @@ knitr::kable(tableau_print)
 
 
 ## Functions
+
+### Save and upload Results
+
+```{r def save_and_upload_results}
+#| echo: true
+#| code-fold: true
+
+save_and_upload_results <- function(result, result_name, result_type) {
+
+  # result_type: "std" | "trans"
+
+  # save as .rds
+  saveRDS(result, paste0("last_results/", result_name, ".rds"))
+
+  # save results as .csv
+  write.csv(result$y, paste0("last_results/", result_name, ".csv"), sep = ",")
+
+  # upload to github
+  system("git add last_results/")
+  system("git commit -m 'update last_results'")
+  system("git push")
+
+}
+```
 
 ### Solve Tableau
 
@@ -765,9 +784,9 @@ plot_trans_conc_lines <- function(trans_res, species, timesteps) {
 #| echo: true
 
 length   <- 0.1 # (m)
-N_grid   <- 400 # (-)
+N_grid   <- 300 # (-)
 
-grid     <- setup.grid.1D(L = length, N = N_grid, dx.1=0.0005)
+grid     <- setup.grid.1D(L = length, N = N_grid, dx.1 = 0.0005)
 ```
 
 ### Porosity / Solid Volume Fraction
@@ -1317,7 +1336,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     # set NaN values to a number (???)
     time_scales[is.na(time_scales)] <- 100
     # set 0 to a small number
-    time_scales[time_scales == 0] <- 1e-10
+    # time_scales[time_scales == 0] <- 1e-10
 
     return(
       list(
@@ -1450,7 +1469,7 @@ if (run_std0) {
     precipitation = FALSE
   )
 
-  saveRDS(std0, "last_results/std0.rds")
+  save_and_upload_results(std0, "std0", "std")
 
 } else {
   std0 <- readRDS("last_results/std0.rds")
@@ -1476,7 +1495,7 @@ if (run_std1) {
     precipitation = TRUE
   )
 
-  saveRDS(std1, "last_results/std1.rds")
+  save_and_upload_results(std1, "std1", "std")
 
 } else {
   std1 <- readRDS("last_results/std1.rds")
@@ -1504,7 +1523,7 @@ if (run_std2) {
     precipitation = TRUE
   )
 
-  saveRDS(std2, "last_results/std2.rds")
+  save_and_upload_results(std2, "std2", "std")
 
 } else {
   std2 <- readRDS("last_results/std2.rds")
@@ -1870,7 +1889,7 @@ if (run_trans) {
     precipitation = TRUE
   )
 
-  saveRDS(trans, "last_results/trans.rds")
+  save_and_upload_results(trans, "trans", "trans")
 
 } else {
   trans <- readRDS("last_results/trans.rds")

@@ -4,9 +4,19 @@ project:
 
 website:
   title: "RoKo-reuther.github.io"
-  navbar: false
+  navbar:
+    search: true
+    left:
+      - text: "Description"
+        file: index.qmd
+      - text: "Results"
+        file: results.qmd
   repo-url: https://github.com/RoKo-reuther/RoKo-reuther.github.io
   repo-actions: [issue]
+
+filters:
+  - shinylive
+  - webr
 
 format:
   html:
@@ -23,3 +33,10 @@ format:
       body-width: 1200px
       sidebar-width: 380px
       margin-width: 340px
+
+execute:
+  echo: false
+  eval: true
+
+bibliography: FeTreatment.bib
+
