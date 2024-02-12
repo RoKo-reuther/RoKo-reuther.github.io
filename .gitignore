@@ -1,6 +1,6 @@
 /.quarto/
 .~lock.tableau.fods#
 /_extensions/
-/last_results/*.rds
+/last_results/
 /.helix/
 .lintr
