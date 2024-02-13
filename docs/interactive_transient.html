@@ -150,7 +150,7 @@ library(bslib)
 # Define UI for app that draws a histogram ----
 ui &lt;- page_sidebar(
   sidebar = sidebar(open = "open",
-    numericInput("n", "Sample count", 100),
+    numericInput("n", "Sample count", 10),
     checkboxInput("pause", "Pause", FALSE),
   ),
   plotOutput("plot", width=1100)
