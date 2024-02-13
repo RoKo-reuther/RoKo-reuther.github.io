@@ -1,7 +1,10 @@
 ---
 title: "Interactive steady-state"
 
-engine: knitr
+format:
+  html:
+    resources: 
+      - shinylive-sw.js
 
 filters:
   - shinylive
