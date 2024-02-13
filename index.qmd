@@ -5,16 +5,16 @@ title: "Fe Treatment Model"
 
 ```{r document switches}
 # load std0 from disk (false) or calculate new (true)
-run_std0 <- TRUE
-#run_std0 <- FALSE
+#run_std0 <- TRUE
+run_std0 <- FALSE
 
 # load std1 from disk (false) or calculate new (true)
-run_std1 <- TRUE
-#run_std1 <- FALSE
+#run_std1 <- TRUE
+run_std1 <- FALSE
 
 # load std2 from disk (false) or calculate new (true)
-run_std2 <- TRUE
-#run_std2 <- FALSE
+#run_std2 <- TRUE
+run_std2 <- FALSE
 
 # load trans from disk (false) or calculate new (true)
 #run_trans <- TRUE
@@ -353,7 +353,7 @@ knitr::kable(tableau_print)
 #| echo: true
 #| code-fold: true
 
-save_and_upload_results <- function(result, result_name, result_type) {
+save_and_upload_results <- function(result, result_name, result_type, grid) {
 
   # result_type: "std" | "trans"
 
@@ -361,13 +361,27 @@ save_and_upload_results <- function(result, result_name, result_type) {
   saveRDS(result, paste0("last_results/", result_name, ".rds"))
 
   # save results as .csv
-  write.csv(result$y, paste0("last_results/", result_name, ".csv"), sep = ",")
+  ## std
+  if (result_type == "std") {
+    # species concentrations
+    write.csv(result$y, paste0("../temp_drop/", result_name, "_species.csv"))
+    # transport
+    write.csv(result$transport, paste0("../temp_drop/", result_name, "_transport.csv"))
+    # sumR
+    write.csv(result$sumR, paste0("../temp_drop/", result_name, "_sumR.csv"))
+    # reaction rates
+    write.csv(result$rates, paste0("../temp_drop/", result_name, "_rates.csv"))
+    # omega
+    write.csv(result$omega, paste0("../temp_drop/", result_name, "_omega.csv"))
+    # speciation
+    try(write.csv(result$solute_equilibrium$species_conc, paste0("../temp_drop/", result_name, "_speciation.csv")), silent = TRUE)
+    
+  } else if (result_type == "trans") {
 
-  # upload to github
-  system("git add last_results/")
-  system("git commit -m 'update last_results'")
-  system("git push")
+  }
 
+  # upload to github repo: git@github.com:RoKo-reuther/temp_drop.git
+  system("cd ../temp_drop && git add . && git commit -m 'update' && git push")
 }
 ```
 
@@ -377,12 +391,12 @@ save_and_upload_results <- function(result, result_name, result_type) {
 #| echo: true
 #| code-fold: true
 
-solve_tableau <- function(component_total, tableau, logK, N_grid) {
+solve_tableau <- function(component_total, tableau, logK, N_grid, tableau_species) {
   
   # load shared object
   dyn.load("solve_tableau.so")
 
-  return(.Fortran("solve_tableau",
+  res <- .Fortran("solve_tableau",
                   component_total = as.double(component_total),
                   tableau         = matrix(as.double(tableau), ncol = ncol(tableau)),
                   logK            = as.double(logK),
@@ -396,7 +410,10 @@ solve_tableau <- function(component_total, tableau, logK, N_grid) {
                   species_conc    = matrix(as.double(0), ncol = nrow(tableau), nrow = N_grid),
                   success         = rep(as.integer(0), N_grid)
                   )
-  )
+
+  colnames(res$species_conc) <- tableau_species
+
+  return(res)
   
 }
 ```
@@ -784,9 +801,14 @@ plot_trans_conc_lines <- function(trans_res, species, timesteps) {
 #| echo: true
 
 length   <- 0.1 # (m)
-N_grid   <- 300 # (-)
+N_grid   <- 400 # (-)
 
 grid     <- setup.grid.1D(L = length, N = N_grid, dx.1 = 0.0005)
+```
+
+```{r save_grid}
+saveRDS(grid, "last_results/grid.rds")
+write.csv(grid$x.mid, "../temp_drop/grid.csv")
 ```
 
 ### Porosity / Solid Volume Fraction
@@ -1001,7 +1023,8 @@ parameter <- c(
   reaction_parameter,
   ratios_pH7,
   logK = logK,
-  tableau = tableau
+  tableau = tableau,
+  tableau_species = tableau_species
 )
 
 N_species <- length(model_species)
@@ -1108,7 +1131,7 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
       # 1) grep the solute total components; here we need TOT_H = - ALK
       solute_totals <- c(-ALK, DIC, TOT_P, TOT_N5, TOT_N3, TOT_S6, TOT_S2)
       # 2) solve tableau
-      solute_equilibrium  <- solve_tableau(solute_totals, tableau, logK, N_grid)
+      solute_equilibrium  <- solve_tableau(solute_totals, tableau, logK, N_grid, tableau_species)
       # 3) assign results
       H     <- solute_equilibrium$species_conc[,1]
       pH    <- -log10(H * 10^-3)
@@ -1560,7 +1583,7 @@ plot_std_profiles(std1, std2, grid)
 # In the model we have alkalinity (column 1) - but here we need TOT_H = -ALK
 component_total  <- c(-1*std1$y[,1], std1$y[,2:7])
 
-equilibrium_std1 <- solve_tableau(component_total, tableau, logK, N_grid)
+equilibrium_std1 <- solve_tableau(component_total, tableau, logK, N_grid, tableau_species)
 
 speciation_std1  <- equilibrium_std1$species_conc
 

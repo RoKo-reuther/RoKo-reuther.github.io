@@ -7,10 +7,10 @@ website:
   navbar:
     search: true
     left:
-      - text: "Description"
+      - text: "Setup and Run"
         file: index.qmd
-      - text: "Results"
-        file: results.qmd
+      - text: "Interactive std"
+        file: interactive_std.qmd
   repo-url: https://github.com/RoKo-reuther/RoKo-reuther.github.io
   repo-actions: [issue]
 
