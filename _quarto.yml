@@ -11,6 +11,8 @@ website:
         file: index.qmd
       - text: "Interactive std"
         file: interactive_std.qmd
+      - text: "Interactive transient"
+        file: interactive_transient.qmd
   repo-url: https://github.com/RoKo-reuther/RoKo-reuther.github.io
   repo-actions: [issue]
 
