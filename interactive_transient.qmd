@@ -1,26 +1,24 @@
 ---
 title: "Interactive steady-state"
-
-format:
-  html:
-    resources: 
-      - shinylive-sw.js
-
-filters:
-  - shinylive
 ---
 
 ## Explore Model Results Interactively
 
-```{shinylive-r}
-#| standalone: true
-#| viewerHeight: 600
-library(shiny)
+```{r}
+#| output: false
 
-ui <- fluidPage(
-  "Hello, world!"
+trans <- as.data.frame(readRDS("last_results/trans.rds"))
+
+ojs_define(trans = trans)
+```
+
+```{ojs}
+yearlyChart = Plot.plot({
+  marks: [
+    Plot.line(transpose(trans), 
+      {x: "time", y: "time"}, 
+      { stroke: "black" }
+    )
+  ]}
 )
-server <- function(input, output, session) {
-}
-shinyApp(ui, server)
 ```

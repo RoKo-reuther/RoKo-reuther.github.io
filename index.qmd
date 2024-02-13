@@ -713,7 +713,7 @@ plot_speciation <- function(speciation, grid) {
 #| echo: true
 #| code-fold: true
 
-split_trans_results <- function(trans, grid) {
+split_trans_results <- function(trans, grid, tableau_species) {
 
   res     <- list()
   N_grid  <- attr(trans, "dimens")
@@ -735,7 +735,83 @@ split_trans_results <- function(trans, grid) {
     time  = rep(times, N_grid * N_spec),
     depth = rep(rep(grid$x.mid, each = N_times), N_spec)
   )
+
+  ## transport - tran$dC
+  data <- trans[, grep("^transport.tran.*\\.dC.*$", colnames(trans))]
   
+  res[["transport"]] <- data.frame(
+    name  = rep(sub(".dC.*", "", sub("transport.tran.", "", colnames(data))), each = N_times),
+    value = unlist(as.vector(data)),
+    time  = rep(times, N_grid * N_spec),
+    depth = rep(rep(grid$x.mid, each = N_times), N_spec)
+  )
+
+  ## transport - fluxes
+  data <- trans[, grep("^transport.tran.*\\.flux.*$", colnames(trans))]
+  
+  res[["fluxes"]] <- data.frame(
+    name  = rep(sub(".flux.*", "", sub("transport.tran.", "", colnames(data))), each = N_times),
+    value = unlist(as.vector(data)),
+    time  = rep(times, N_spec * 2),
+    type  = rep(rep(c("up", "down"), each = N_times), N_spec)
+  )
+
+  ## sumR
+  data   <- trans[, grep("^sumR.", colnames(trans))]
+
+  N_sumR <- attr(trans, "lengthvar")[["sumR"]]
+  len_to_remove <- nchar(as.character(rep(seq(1, N_grid), N_sumR)))
+  names <- substr(colnames(data), 1, nchar(colnames(data)) - len_to_remove)
+  names <- rep(sub("sumR.R.", "", names), each = N_times)
+
+  res[["sumR"]] <- data.frame(
+    name  = names,
+    value = unlist(as.vector(data)),
+    time  = rep(times, N_grid * N_sumR),
+    depth = rep(rep(grid$x.mid, each = N_times), N_sumR)
+  )
+
+  ## reaction rates
+  data <- trans[, grep("^rates.", colnames(trans))]
+
+  N_rates <- attr(trans, "lengthvar")[["rates"]]
+  len_to_remove <- nchar(as.character(rep(seq(1, N_grid), N_rates)))
+  names <- substr(colnames(data), 1, nchar(colnames(data)) - len_to_remove)
+  names <- rep(sub("rates.", "", names), each = N_times)
+  
+  res[["rates"]] <- data.frame(
+    name  = names,
+    value = unlist(as.vector(data)),
+    time  = rep(times, N_grid * N_rates),
+    depth = rep(rep(grid$x.mid, each = N_times), N_rates)
+  )
+
+  ## omega
+  data <- trans[, grep("^omega.", colnames(trans))]
+
+  N_omega <- attr(trans, "lengthvar")[["omega"]]
+  len_to_remove <- nchar(as.character(rep(seq(1, N_grid), N_omega)))
+  names <- substr(colnames(data), 1, nchar(colnames(data)) - len_to_remove)
+  names <- rep(sub("omega.", "", names), each = N_times)
+  
+  res[["omega"]] <- data.frame(
+    name  = names,
+    value = unlist(as.vector(data)),
+    time  = rep(times, N_grid * N_omega),
+    depth = rep(rep(grid$x.mid, each = N_times), N_omega)
+  )
+
+  ## solute equilibrium: speciation
+  data <- trans[, grep("^solute_equilibrium.species_conc", colnames(trans))]
+
+  N_tableau_species <- length(tableau_species)
+
+  res[["speciation"]] <- data.frame(
+    name  = rep(tableau_species, each = N_grid * N_times),
+    value = unlist(as.vector(data)),
+    time  = rep(times, N_grid * N_tableau_species),
+    depth = rep(rep(grid$x.mid, each = N_times), N_tableau_species)
+  )
 
   return(res)
 
@@ -786,7 +862,7 @@ plot_trans_conc_lines <- function(trans_res, species, timesteps) {
   fig <- fig %>% layout(
     xaxis = list(title = paste(species, " (mol/(m3_phase))")),
     yaxis = list(title = "depth (m)", range = c(max(data$depth),0)),
-    font = list(size = 16)
+    font  = list(size = 16)
   )
 
   fig
@@ -1893,10 +1969,10 @@ flux [mol/(m²*yr)] = 1.8 [mol/m²] / (1/12) [yr] = 21.6 [mol/(m²*yr)]
 ```{r trans}
 #| echo: true
 
-timesteps <- seq(from = 0, to = 0.1, by = 1/12)
+timesteps <- seq(from = 0, to = 2, by = 1/12)
 
 if (run_trans) {
-  trans <- ode.1D(
+  system.time(trans <- ode.1D(
     y = as.vector(std2$y), 
     time = timesteps, 
     func = model, 
@@ -1910,8 +1986,9 @@ if (run_trans) {
     adv_vel = advective_velocities,
     solve_equilibrium = TRUE,
     precipitation = TRUE
-  )
+  ))
 
+  trans <- split_trans_results(trans, grid, tableau_species)
   save_and_upload_results(trans, "trans", "trans")
 
 } else {
@@ -1921,19 +1998,17 @@ if (run_trans) {
 
 ```{r plot trans conc contour}
 
-trans_split <- split_trans_results(trans, grid)
-
 #contour_plots <- list()
 
 #for (species in model_species) {
 #  contour_plots[[species]] <- plot_trans_conc_contour(trans_split, species)
 #}
 
-plot_trans_conc_contour(trans_split, "FeOH3")
+plot_trans_conc_contour(trans, "FeOH3")
 
-plot_trans_conc_contour(trans_split, "Viv")
+plot_trans_conc_contour(trans, "Viv")
 
-plot_trans_conc_lines(trans_split, "FeOH3", c(0/12, 3/12, 6/12, 9/12, 1))
+plot_trans_conc_lines(trans, "FeOH3", c(0/12, 3/12, 6/12, 9/12, 1))
 
 #plot(
 #  x = subset(trans_split$species, name == "FeOH3" & time == 0)$value,
