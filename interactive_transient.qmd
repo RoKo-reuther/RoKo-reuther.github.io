@@ -28,7 +28,7 @@ import {offsetInterval} from "@mootari/offset-slider"
 viewof species_selection = Inputs.checkbox(species_names, {label: "Species:"})
 
 viewof time_selection = offsetInterval(times, {
-  label: "Time-Interval:",
+  label: "Time-Interval (yr):",
   value: [ d3.min(times), d3.min(times) ]
 })
 
