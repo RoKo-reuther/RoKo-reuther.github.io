@@ -1,24 +1,65 @@
 ---
-title: "Interactive steady-state"
+title: "Explore Results of dynamic Run"
 ---
 
-## Explore Model Results Interactively
+## Species Concentrations
+
 
 ```{r}
+#| echo: false
 #| output: false
 
-trans <- as.data.frame(readRDS("last_results/trans.rds"))
+trans <- readRDS("last_results/trans.rds")
 
-ojs_define(trans = trans)
+species <- trans$species
+ojs_define(species  = species)
+ojs_define(times    = unique(trans$species$time))
+ojs_define(depths   = unique(trans$species$depth))
+ojs_define(species_names = unique(trans$species$name))
 ```
 
 ```{ojs}
-yearlyChart = Plot.plot({
+//| echo: false
+
+species_transposed = transpose(species)
+
+import {offsetInterval} from "@mootari/offset-slider"
+
+viewof species_selection = Inputs.checkbox(species_names, {label: "Species:"})
+
+viewof time_selection = offsetInterval(times, {
+  label: "Time-Interval:",
+  value: [ d3.min(times), d3.min(times) ]
+})
+
+viewof depth_selection = offsetInterval(depths, {
+  label: "Depth:",
+  value: [ d3.min(depths), d3.max(depths) ]
+})
+
+viewof colormode = Inputs.radio(["time", "name"], {label: "Color:"})
+```
+
+
+```{ojs}
+//| echo: false
+
+filtered = species_transposed.filter(function(entry) {
+  return time_selection[0]  <= entry.time && time_selection[1]   >= entry.time &&
+         depth_selection[0] <= entry.depth && depth_selection[1] >= entry.depth &&
+         species_selection.includes(entry.name);
+})
+
+
+
+Plot.plot({
+  width:  800,
+  height: 600,
+  y: {domain: [d3.max(depths), d3.min(depths)]},  
+  color: {legend: true},
   marks: [
-    Plot.line(transpose(trans), 
-      {x: "time", y: "time"}, 
-      { stroke: "black" }
-    )
+    Plot.frame(),
+    Plot.lineY(filtered, {x: "value", y: "depth", stroke: colormode, curve: "basis", strokeWidth: 5})
   ]}
 )
 ```

@@ -17,7 +17,6 @@ website:
   repo-actions: [issue]
 
 filters:
-  - shinylive
   - webr
 
 format:

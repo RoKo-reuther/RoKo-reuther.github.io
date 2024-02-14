@@ -733,6 +733,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = rep(attr(trans, "ynames"), each = N_times * N_grid),
     value = as.vector(trans[,start:end]),
     time  = rep(times, N_grid * N_spec),
+    step  = rep(seq(1, N_times), N_grid * N_spec),
     depth = rep(rep(grid$x.mid, each = N_times), N_spec)
   )
 
@@ -743,6 +744,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = rep(sub(".dC.*", "", sub("transport.tran.", "", colnames(data))), each = N_times),
     value = unlist(as.vector(data)),
     time  = rep(times, N_grid * N_spec),
+    step  = rep(seq(1, N_times), N_grid * N_spec),
     depth = rep(rep(grid$x.mid, each = N_times), N_spec)
   )
 
@@ -753,6 +755,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = rep(sub(".flux.*", "", sub("transport.tran.", "", colnames(data))), each = N_times),
     value = unlist(as.vector(data)),
     time  = rep(times, N_spec * 2),
+    step  = rep(seq(1, N_times), N_spec * 2),
     type  = rep(rep(c("up", "down"), each = N_times), N_spec)
   )
 
@@ -768,6 +771,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = names,
     value = unlist(as.vector(data)),
     time  = rep(times, N_grid * N_sumR),
+    step  = rep(seq(1, N_times), N_grid * N_sumR),
     depth = rep(rep(grid$x.mid, each = N_times), N_sumR)
   )
 
@@ -783,6 +787,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = names,
     value = unlist(as.vector(data)),
     time  = rep(times, N_grid * N_rates),
+    step  = rep(seq(1, N_times), N_grid * N_rates),
     depth = rep(rep(grid$x.mid, each = N_times), N_rates)
   )
 
@@ -798,6 +803,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = names,
     value = unlist(as.vector(data)),
     time  = rep(times, N_grid * N_omega),
+    step  = rep(seq(1, N_times), N_grid * N_omega),
     depth = rep(rep(grid$x.mid, each = N_times), N_omega)
   )
 
@@ -810,6 +816,7 @@ split_trans_results <- function(trans, grid, tableau_species) {
     name  = rep(tableau_species, each = N_grid * N_times),
     value = unlist(as.vector(data)),
     time  = rep(times, N_grid * N_tableau_species),
+    step  = rep(seq(1, N_times), N_grid * N_tableau_species),
     depth = rep(rep(grid$x.mid, each = N_times), N_tableau_species)
   )
 
