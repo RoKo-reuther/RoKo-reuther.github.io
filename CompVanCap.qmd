@@ -1,0 +1,274 @@
+---
+title: "Comparision to Wang & Van Capellen (1996)"
+---
+
+
+```{r load libraries}
+#| message: false
+
+trigger <- 0
+
+require(readODS)
+#require(plotly)
+```
+
+```{r conversion factor}
+por <- 0.818
+svf <- 1 - por
+
+conv <- 1e6 * 1e-3 # umol/mol * m3/L
+conv_solid <- 1e6 * 0.01^3 # umol/mol * (0.01 m/cm)^3
+
+# with phase correction
+conv <- conv * por
+conv_solid <- conv_solid * svf
+```
+
+```{r get data and functions}
+download_model_result <- function(url) {
+  read.csv(url, sep = ",")
+}
+
+grid <- download_model_result("../temp_drop/grid.csv")
+
+std0 <- list(
+  species    = download_model_result("../temp_drop/std0_species.csv"),
+  transport  = download_model_result("../temp_drop/std0_transport.csv"),
+  sumR       = download_model_result("../temp_drop/std0_sumR.csv"),
+  rates      = download_model_result("../temp_drop/std0_rates.csv"),
+  omega      = download_model_result("../temp_drop/std0_omega.csv")
+)
+
+std1 <- list(
+  species    = download_model_result("../temp_drop/std1_species.csv"),
+  transport  = download_model_result("../temp_drop/std1_transport.csv"),
+  sumR       = download_model_result("../temp_drop/std1_sumR.csv"),
+  rates      = download_model_result("../temp_drop/std1_rates.csv"),
+  omega      = download_model_result("../temp_drop/std1_omega.csv"),
+  speciation = download_model_result("../temp_drop/std1_speciation.csv")
+)
+
+std2 <- list(
+  species    = download_model_result("../temp_drop/std2_species.csv"),
+  transport  = download_model_result("../temp_drop/std2_transport.csv"),
+  sumR       = download_model_result("../temp_drop/std2_sumR.csv"),
+  rates      = download_model_result("../temp_drop/std2_rates.csv"),
+  omega      = download_model_result("../temp_drop/std2_omega.csv"),
+  speciation = download_model_result("../temp_drop/std2_speciation.csv")
+)
+
+# HELPER FUNCTIONS TO FIND VALUES
+index_by_depth <- function(start, end) {
+  which(grid[,2] >= start & grid[,2] <= end)
+}
+
+minmaxdepth <- function() {c(min(grid[,2]), max(grid[,2]))}
+
+std.conc <- function(std, species, depth = minmaxdepth()) {
+  # std.conc(std = std1, species = "Fe2", depth = c(0.02,0.03))
+  
+  data <- as.matrix(std$species)
+  if (!is.null(std$speciation)) {
+    data <- cbind(as.matrix(std$species), as.matrix(std$speciation))
+  }
+
+  depth <- index_by_depth(depth[1], depth[2])
+
+  return(data[depth, species])
+}
+
+std.plot <- function(..., depth = minmaxdepth(), legendpos = "bottomright") {
+  # plots an vector of x values and more over the depth specified for this elements
+  # do not specify a depth for single elements!!!
+  # std.plot(std1 = std.conc(std1, "Fe2"), std2 = std.conc(std2, "Fe2"))
+
+  index <- index_by_depth(depth[1], depth[2])
+
+  depth <- grid[index, 2]
+
+  elements <- list(...)
+
+  elements <- as.data.frame(elements)
+
+  cols <- palette.colors(ncol(elements))
+
+  plot(
+    x    = elements[index, 1],
+    y    = depth,
+    ylim = c(max(depth), min(depth)),
+    xlim = c(min(elements[index,]), max(elements[index,])),
+    type = "l",
+    lwd  = 4,
+    col  = cols[1],
+    ylab = "depth",
+    xlab = ""
+  )
+
+  for (i in seq_len(ncol(elements))[-1]) {
+
+    points(
+      x    = elements[index, i],
+      y    = depth,
+      type = "l",
+      lwd  = 4,
+      col  = cols[i]
+    )
+
+  }
+
+  legend(
+    legendpos,
+    legend = colnames(elements),
+    col    = cols,
+    lwd = 3
+  )
+  
+}
+```
+
+
+## pH & Alkalinity
+
+::: {.callout-note}
+## We are comparing to profile S4
+:::
+
+![](./WangVanCapProfiles/pHAlkalinity.png){fig-align="center"}
+
+```{r plot pH & Alkalinity}
+#| layout-ncol: 2
+#| fig.height: 6.5
+
+std.plot(
+  pH_std1 = -log10(std.conc(std1, "H") * 10^-3), # mol/m3 * 10^-3 m3/L
+  pH_std2 = -log10(std.conc(std2, "H") * 10^-3), # mol/m3 * 10^-3 m3/L
+  depth = c(0.00, 0.1)
+)
+
+std.plot(
+  ALK_std1 = std.conc(std1, "ALK") * (1 / 0.1^3) * 1e-3, # mol/m3 * (0.1 m/dm)^3 * 1e-3 eq/meq,
+  ALK_std2 = std.conc(std2, "ALK") * (1 / 0.1^3) * 1e-3, # mol/m3 * (0.1 m/dm)^3 * 1e-3 eq/meq,
+  depth = c(0.00, 0.1)
+)
+```
+
+
+## O2, Fe2+, Mn2+
+
+::: {layout-ncol=2}
+![](./WangVanCapProfiles/O2Fe2Mn2.png)
+
+```{r plot O2}
+#| fig.height: 6.5
+std.plot(
+  O2_std1 = std.conc(std1, "O2") * conv,
+  O2_std2 = std.conc(std2, "O2") * conv,
+  depth = c(0.00, 0.1)
+)
+```
+
+```{r plot Fe2}
+#| fig.height: 6.5
+std.plot(
+  Fe2_std1 = std.conc(std1, "Fe2") * conv,
+  Fe2_std2 = std.conc(std2, "Fe2") * conv,
+  depth = c(0.00, 0.1)
+)
+```
+
+```{r plot Mn2}
+#| fig.height: 6.5
+std.plot(
+  Mn2_std1 = std.conc(std1, "Mn2") * conv,
+  Mn2_std2 = std.conc(std2, "Mn2") * conv,
+  depth = c(0.00, 0.1)
+)
+```
+:::
+
+
+## NO3 & NH4
+
+![](./WangVanCapProfiles/NO3NH4.png){fig-align="center"}
+
+```{r plot NO3 & NH4}
+#| layout-ncol: 2
+#| fig.height: 6.5
+
+std.plot(
+  NO3_std1 = std.conc(std1, "NO3") * conv,
+  NO3_std2 = std.conc(std2, "NO3") * conv,
+  depth = c(0.00, 0.1)
+)
+
+std.plot(
+  NH4_std1 = std.conc(std1, "TOT_N3") * conv,
+  NH4_std2 = std.conc(std2, "TOT_N3") * conv,
+  depth = c(0.00, 0.1)
+)
+```
+
+
+## MnO2 & FeOH3
+
+![](./WangVanCapProfiles/MnO2FeOH3.png){fig-align="center"}
+
+```{r plot MnO2 & FeOH3}
+#| layout-ncol: 2
+#| fig.height: 6.5
+
+std.plot(
+  MnO2_std1 = std.conc(std1, "MnO2") * conv_solid,
+  MnO2_std2 = std.conc(std2, "MnO2") * conv_solid,
+  depth = c(0.00, 0.1)
+)
+
+std.plot(
+  FeOH3_std1 = std.conc(std1, "FeOH3") * conv_solid + std.conc(std1, "FeOH3_P") * conv_solid,
+  FeOH3_std2 = std.conc(std2, "FeOH3") * conv_solid + std.conc(std1, "FeOH3_P") * conv_solid,
+  depth = c(0.00, 0.1)
+)
+```
+
+
+## FeCO3, MnCO3, FeS
+
+::: {layout-ncol=2}
+![](./WangVanCapProfiles/FeCO3FeSMnCO3.png)
+
+```{r plot FeCO3}
+#| fig.height: 6.5
+std.plot(
+  FeCO3_std1 = std.conc(std1, "FeCO3") * conv_solid,
+  FeCO3_std2 = std.conc(std2, "FeCO3") * conv_solid,
+  depth = c(0.00, 0.1)
+)
+```
+
+```{r plot FeS}
+#| fig.height: 6.5
+std.plot(
+  FeS_std1 = std.conc(std1, "FeS") * conv_solid,
+  FeS_std2 = std.conc(std2, "FeS") * conv_solid,
+  depth = c(0.00, 0.1)
+)
+```
+
+```{r plot MnCO3}
+#| fig.height: 6.5
+std.plot(
+  MnCO3_std1 = std.conc(std1, "MnCO3") * conv_solid,
+  MnCO3_std2 = std.conc(std2, "MnCO3") * conv_solid,
+  depth = c(0.00, 0.1)
+)
+```
+:::
+
+
+
+
+
+
+
+
+

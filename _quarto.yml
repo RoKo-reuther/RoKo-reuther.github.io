@@ -9,6 +9,8 @@ website:
     left:
       - text: "Setup and Run"
         file: index.qmd
+      - text: "Wang & Van Capellen"
+        file: CompVanCap.qmd
       - text: "Interactive std"
         file: interactive_std.qmd
       - text: "Interactive transient"
