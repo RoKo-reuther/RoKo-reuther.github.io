@@ -6,7 +6,7 @@ title: "Comparision to Wang & Van Capellen (1996)"
 ```{r load libraries}
 #| message: false
 
-trigger <- 0
+trigger <- 1
 
 require(readODS)
 #require(plotly)
@@ -22,6 +22,9 @@ conv_solid <- 1e6 * 0.01^3 # umol/mol * (0.01 m/cm)^3
 # with phase correction
 conv <- conv * por
 conv_solid <- conv_solid * svf
+
+# conversion factor rates
+conv_rates <- 1e6 * 0.01^3
 ```
 
 ```{r get data and functions}
@@ -75,6 +78,16 @@ std.conc <- function(std, species, depth = minmaxdepth()) {
   depth <- index_by_depth(depth[1], depth[2])
 
   return(data[depth, species])
+}
+
+std.rate <- function(std, rate, depth = minmaxdepth()) {
+  # std.rate(std = std1, rate = "R12", depth = c(0.02,0.03))
+  std$rates[index_by_depth(depth[1], depth[2]), rate]
+}
+
+std.sumR <- function(std, species, depth = minmaxdepth()) {
+  # std.sumR(std = std1, species = "Fe2", depth = c(0.02,0.03))
+  std$sumR[index_by_depth(depth[1], depth[2]), paste0("R.", species)]
 }
 
 std.plot <- function(..., depth = minmaxdepth(), legendpos = "bottomright") {
@@ -138,17 +151,34 @@ std.plot <- function(..., depth = minmaxdepth(), legendpos = "bottomright") {
 ```{r plot pH & Alkalinity}
 #| layout-ncol: 2
 #| fig.height: 6.5
+#| fig.width: 4.5
+
+pH_orig <- read.csv("./WangVanCapProfiles/WVC_pH_profile.csv", header = FALSE)
+colnames(pH_orig) <- c("pH", "depth")
+pH_orig$depth <- pH_orig$depth * 0.01
+
+ALK_orig <- read.csv("./WangVanCapProfiles/WVC_Alkalinity.csv", header = FALSE)
+colnames(ALK_orig) <- c("ALK", "depth")
+ALK_orig$depth <- ALK_orig$depth * 0.01
 
 std.plot(
   pH_std1 = -log10(std.conc(std1, "H") * 10^-3), # mol/m3 * 10^-3 m3/L
   pH_std2 = -log10(std.conc(std2, "H") * 10^-3), # mol/m3 * 10^-3 m3/L
   depth = c(0.00, 0.1)
 )
+points(
+  x = pH_orig$pH,
+  y = pH_orig$depth
+)
 
 std.plot(
   ALK_std1 = std.conc(std1, "ALK") * (1 / 0.1^3) * 1e-3, # mol/m3 * (0.1 m/dm)^3 * 1e-3 eq/meq,
   ALK_std2 = std.conc(std2, "ALK") * (1 / 0.1^3) * 1e-3, # mol/m3 * (0.1 m/dm)^3 * 1e-3 eq/meq,
   depth = c(0.00, 0.1)
+)
+points(
+  x = ALK_orig$ALK,
+  y = ALK_orig$depth
 )
 ```
 
@@ -160,28 +190,55 @@ std.plot(
 
 ```{r plot O2}
 #| fig.height: 6.5
+
+O2_orig <- read.csv("./WangVanCapProfiles/WVC_O2.csv", header = FALSE)
+colnames(O2_orig) <- c("conc", "depth")
+O2_orig$depth <- O2_orig$depth * 0.01
+
 std.plot(
   O2_std1 = std.conc(std1, "O2") * conv,
   O2_std2 = std.conc(std2, "O2") * conv,
   depth = c(0.00, 0.1)
 )
+points(
+  x = O2_orig$conc,
+  y = O2_orig$depth
+)
 ```
 
 ```{r plot Fe2}
 #| fig.height: 6.5
+
+Fe2_orig <- read.csv("./WangVanCapProfiles/WVC_Fe2.csv", header = FALSE)
+colnames(Fe2_orig) <- c("conc", "depth")
+Fe2_orig$depth <- Fe2_orig$depth * 0.01
+
 std.plot(
   Fe2_std1 = std.conc(std1, "Fe2") * conv,
   Fe2_std2 = std.conc(std2, "Fe2") * conv,
   depth = c(0.00, 0.1)
 )
+points(
+  x = Fe2_orig$conc,
+  y = Fe2_orig$depth
+)
 ```
 
 ```{r plot Mn2}
 #| fig.height: 6.5
+
+Mn2_orig <- read.csv("./WangVanCapProfiles/WVC_Mn2.csv", header = FALSE)
+colnames(Mn2_orig) <- c("conc", "depth")
+Mn2_orig$depth <- Mn2_orig$depth * 0.01
+
 std.plot(
   Mn2_std1 = std.conc(std1, "Mn2") * conv,
   Mn2_std2 = std.conc(std2, "Mn2") * conv,
   depth = c(0.00, 0.1)
+)
+points(
+  x = Mn2_orig$conc,
+  y = Mn2_orig$depth
 )
 ```
 :::
@@ -195,16 +252,32 @@ std.plot(
 #| layout-ncol: 2
 #| fig.height: 6.5
 
+NO3_orig <- read.csv("./WangVanCapProfiles/WVC_NO3.csv", header = FALSE)
+colnames(NO3_orig) <- c("conc", "depth")
+NO3_orig$depth <- NO3_orig$depth * 0.01
+
+NH4_orig <- read.csv("./WangVanCapProfiles/WVC_NH4.csv", header = FALSE)
+colnames(NH4_orig) <- c("conc", "depth")
+NH4_orig$depth <- NH4_orig$depth * 0.01
+
 std.plot(
   NO3_std1 = std.conc(std1, "NO3") * conv,
   NO3_std2 = std.conc(std2, "NO3") * conv,
   depth = c(0.00, 0.1)
+)
+points(
+  x = NO3_orig$conc,
+  y = NO3_orig$depth
 )
 
 std.plot(
   NH4_std1 = std.conc(std1, "TOT_N3") * conv,
   NH4_std2 = std.conc(std2, "TOT_N3") * conv,
   depth = c(0.00, 0.1)
+)
+points(
+  x = NH4_orig$conc,
+  y = NH4_orig$depth
 )
 ```
 
@@ -217,16 +290,32 @@ std.plot(
 #| layout-ncol: 2
 #| fig.height: 6.5
 
+MnO2_orig <- read.csv("./WangVanCapProfiles/WVC_MnO2.csv", header = FALSE)
+colnames(MnO2_orig) <- c("conc", "depth")
+MnO2_orig$depth <- MnO2_orig$depth * 0.01
+
+FeOH3_orig <- read.csv("./WangVanCapProfiles/WVC_FeOH3.csv", header = FALSE)
+colnames(FeOH3_orig) <- c("conc", "depth")
+FeOH3_orig$depth <- FeOH3_orig$depth * 0.01
+
 std.plot(
   MnO2_std1 = std.conc(std1, "MnO2") * conv_solid,
   MnO2_std2 = std.conc(std2, "MnO2") * conv_solid,
-  depth = c(0.00, 0.1)
+  depth = c(0.00, 0.2)
+)
+points(
+  x = MnO2_orig$conc,
+  y = MnO2_orig$depth
 )
 
 std.plot(
   FeOH3_std1 = std.conc(std1, "FeOH3") * conv_solid + std.conc(std1, "FeOH3_P") * conv_solid,
   FeOH3_std2 = std.conc(std2, "FeOH3") * conv_solid + std.conc(std1, "FeOH3_P") * conv_solid,
   depth = c(0.00, 0.1)
+)
+points(
+  x = FeOH3_orig$conc,
+  y = FeOH3_orig$depth
 )
 ```
 
@@ -238,37 +327,101 @@ std.plot(
 
 ```{r plot FeCO3}
 #| fig.height: 6.5
+
+FeCO3_orig <- read.csv("./WangVanCapProfiles/WVC_FeCO3.csv", header = FALSE)
+colnames(FeCO3_orig) <- c("conc", "depth")
+FeCO3_orig$depth <- FeCO3_orig$depth * 0.01
+
 std.plot(
   FeCO3_std1 = std.conc(std1, "FeCO3") * conv_solid,
   FeCO3_std2 = std.conc(std2, "FeCO3") * conv_solid,
   depth = c(0.00, 0.1)
 )
+points(
+  x = FeCO3_orig$conc,
+  y = FeCO3_orig$depth
+)
 ```
 
 ```{r plot FeS}
 #| fig.height: 6.5
+
+FeS_orig <- read.csv("./WangVanCapProfiles/WVC_FeS.csv", header = FALSE)
+colnames(FeS_orig) <- c("conc", "depth")
+FeS_orig$depth <- FeS_orig$depth * 0.01
+
 std.plot(
   FeS_std1 = std.conc(std1, "FeS") * conv_solid,
   FeS_std2 = std.conc(std2, "FeS") * conv_solid,
   depth = c(0.00, 0.1)
 )
+points(
+  x = FeS_orig$conc,
+  y = FeS_orig$depth
+)
 ```
 
 ```{r plot MnCO3}
 #| fig.height: 6.5
+
+MnCO3_orig <- read.csv("./WangVanCapProfiles/WVC_MnCO3.csv", header = FALSE)
+colnames(MnCO3_orig) <- c("conc", "depth")
+MnCO3_orig$depth <- MnCO3_orig$depth * 0.01
+
 std.plot(
   MnCO3_std1 = std.conc(std1, "MnCO3") * conv_solid,
   MnCO3_std2 = std.conc(std2, "MnCO3") * conv_solid,
   depth = c(0.00, 0.1)
 )
+points(
+  x = MnCO3_orig$conc,
+  y = MnCO3_orig$depth
+)
 ```
 :::
 
 
+## Carbon Oxidation Rate
+
+![](./WangVanCapProfiles/C_Oxidation_Rate.png)
+
+```{r plot C-Oxidation}
+#| layout-ncol: 2
+#| fig.height: 6.5
+
+std1_total = std.rate(std1, "R1") + std.rate(std1, "R2") + std.rate(std1, "R3") + std.rate(std1, "R4") + std.rate(std1, "R5") + std.rate(std1, "R6")
+std2_total = std.rate(std2, "R1") + std.rate(std2, "R2") + std.rate(std2, "R3") + std.rate(std2, "R4") + std.rate(std2, "R5") + std.rate(std2, "R6")
+
+std.plot(
+  total = std1_total * conv_rates,
+  R1 = std.rate(std1, "R1") * conv_rates,
+  R2 = std.rate(std1, "R2") * conv_rates,
+  R3 = std.rate(std1, "R3") * conv_rates,
+  R4 = std.rate(std1, "R4") * conv_rates,
+  R5 = std.rate(std1, "R5") * conv_rates,
+  R6 = std.rate(std1, "R6") * conv_rates,
+  depth = c(0.00, 0.1)
+)
+
+std.plot(
+  total = std2_total * conv_rates,
+  R1 = std.rate(std2, "R1") * conv_rates,
+  R2 = std.rate(std2, "R2") * conv_rates,
+  R3 = std.rate(std2, "R3") * conv_rates,
+  R4 = std.rate(std2, "R4") * conv_rates,
+  R5 = std.rate(std2, "R5") * conv_rates,
+  R6 = std.rate(std2, "R6") * conv_rates,
+  depth = c(0.00, 0.1)
+)
+```
 
 
+## Irrigation Rates
 
-
+```{r}
+std1_rds <- readRDS("/home/robert/oldHome/robert/Dokumente/Ausbildung/Master/Aktuelles/002_MA/FeTreatmentModel/last_results/std1.rds")
+std2_rds <- readRDS("/home/robert/oldHome/robert/Dokumente/Ausbildung/Master/Aktuelles/002_MA/FeTreatmentModel/last_results/std2.rds")
+```
 
 
 

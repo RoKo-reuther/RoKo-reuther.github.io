@@ -945,10 +945,10 @@ plot_trans_conc_lines <- function(trans_res, species, timesteps) {
 ```{r grid setup}
 #| echo: true
 
-length   <- 0.1 # (m)
-N_grid   <- 200 # (-)
+length   <- 0.5  # (m)
+N_grid   <- 1000 # (-)
 
-grid     <- setup.grid.1D(L = length, N = N_grid, dx.1 = 0.0005)
+grid     <- setup.grid.1D(L = length, N = N_grid, dx.1 = 5e-5)
 ```
 
 ```{r save_grid}
@@ -999,6 +999,47 @@ advective_velocities <- setup.compaction.1D(
 )
 ```
 
+### Irrigation
+```{r irrigation}
+#| echo: true
+
+#grid.correct_k_iri <- setup.prop.1D(
+#     func = p.sig,
+#     y.0 = 1,
+#     y.inf = 0,
+#     x.L = 0.15,
+#     x.att = 0.01,
+#     grid = grid
+# )
+
+#grid.k_iri <- setup.prop.1D(
+#  func = p.exp,
+#  grid = grid,
+#  y.0 = 200, # yr-1
+#  y.inf = 0, # yr-1
+#  x.att = 0.035
+#)
+
+#grid.k_iri$mid <- grid.k_iri$mid * grid.correct_k_iri$mid
+#grid.k_iri$int <- grid.k_iri$int * grid.correct_k_iri$int
+
+get_k_iri_func <- function() {
+  data <- read.csv("./WangVanCapProfiles/WVC_irrigation_coefficient.csv")
+  data$depth <- data$depth * 0.01
+  func <- approxfun(y = data$k, x = data$depth, rule = 2)
+  return(func)
+}
+
+k_iri_func <- get_k_iri_func()
+
+grid.k_iri <- setup.prop.1D(
+  func = k_iri_func,
+  grid = grid
+)
+```
+
+
+
 ### Diffusion Coefficients
 ```{r diffusion}
 #| echo: true
@@ -1006,19 +1047,20 @@ advective_velocities <- setup.compaction.1D(
 salinity    <- 35 # (psu)
 temperature <- 5  # (dgC)
 pressure    <- 1.013253 # (bar)
-Db          <- 0.002 # mixing rate of the sediment; Bioturbation coefficient (m2/y); 1e-5 - 0.01 (Katsev 2006)
-Db_mid      <- 0.2  # middle of Db decreasing zone (m)
-Db_width    <- 0.1   # width of Db decreasing zone (m)
+
+#grid.Db <- setup.prop.1D(
+#    func = function(x){ifelse(x <= 0.2, 0.002, 0)}, # 0.002
+#    grid = grid
+#)
 
 grid.Db <- setup.prop.1D(
-    func = p.sig,
-    y.0 = Db,
-    y.inf = 0,
-    x.L = Db_mid,
-    x.att = Db_width,
-    grid = grid
+         func = p.sig,
+         y.0 = 0.002,
+         y.inf = 0.0002,
+         x.L = 0.2,
+         x.att = 0.05,
+         grid = grid
 )
-#grid.Db <- setup.prop.1D(value = Db, grid = grid)
 
 tortuosity_squared <- 1 - log(grid.por$int^2)
 
@@ -1039,26 +1081,26 @@ diffusion_coefficients <- list(
   # solute: molar diffusion coefficient / tortuosity**2 + bioturbation coefficient
   # solid: bioturbation coefficient
   
-  ALK   = diffcoeffs[[1]]  * s2yr / tortuosity_squared + grid.Db$int,
-  DIC   = diffcoeffs[[2]]  * s2yr / tortuosity_squared + grid.Db$int,
-  CH4   = diffcoeffs[[3]]  * s2yr / tortuosity_squared + grid.Db$int,
-  H2PO4 = diffcoeffs[[4]]  * s2yr / tortuosity_squared + grid.Db$int,
-  NO3   = diffcoeffs[[5]]  * s2yr / tortuosity_squared + grid.Db$int,
-  NH4   = diffcoeffs[[6]]  * s2yr / tortuosity_squared + grid.Db$int,
-  SO4   = diffcoeffs[[7]]  * s2yr / tortuosity_squared + grid.Db$int,
-  O2    = diffcoeffs[[8]]  * s2yr / tortuosity_squared + grid.Db$int,
-  Mn2   = diffcoeffs[[9]]  * s2yr / tortuosity_squared + grid.Db$int,
-  Fe2   = diffcoeffs[[10]] * s2yr / tortuosity_squared + grid.Db$int,
-  H2S   = diffcoeffs[[11]] * s2yr / tortuosity_squared + grid.Db$int,
-  N2    = diffcoeffs[[12]] * s2yr / tortuosity_squared + grid.Db$int,
-  Ca2   = diffcoeffs[[13]] * s2yr / tortuosity_squared + grid.Db$int,
+  ALK   = diffcoeffs[[1]]  * s2yr / tortuosity_squared,
+  DIC   = diffcoeffs[[2]]  * s2yr / tortuosity_squared,
+  CH4   = diffcoeffs[[3]]  * s2yr / tortuosity_squared,
+  H2PO4 = diffcoeffs[[4]]  * s2yr / tortuosity_squared,
+  NO3   = diffcoeffs[[5]]  * s2yr / tortuosity_squared,
+  NH4   = diffcoeffs[[6]]  * s2yr / tortuosity_squared,
+  SO4   = diffcoeffs[[7]]  * s2yr / tortuosity_squared,
+  O2    = diffcoeffs[[8]]  * s2yr / tortuosity_squared,
+  Mn2   = diffcoeffs[[9]]  * s2yr / tortuosity_squared,
+  Fe2   = diffcoeffs[[10]] * s2yr / tortuosity_squared,
+  H2S   = diffcoeffs[[11]] * s2yr / tortuosity_squared,
+  N2    = diffcoeffs[[12]] * s2yr / tortuosity_squared,
+  Ca2   = diffcoeffs[[13]] * s2yr / tortuosity_squared,
   solid = grid.Db$int
     
 )
 ```
 
 ```{r plot por, Db, ...}
-#| layout-ncol: 4
+#| layout-ncol: 3
 #| fig.height: 3.5
 #| fig.width: 3.5
 
@@ -1070,6 +1112,8 @@ plot(x=diffusion_coefficients$DIC, y=grid$x.int, type="l",
      ylim=c(length,0), ylab="depth (m)", xlab="D_DIC (m2/yr)")
 plot(x=diffusion_coefficients$O2, y=grid$x.int, type="l",
      ylim=c(length,0), ylab="depth (m)", xlab="D_O2 (m2/yr)")
+plot(x=grid.k_iri$int, y=grid$x.int, type="l",
+     ylim=c(length,0), ylab="depth (m)", xlab="k_iri int (yr-1)")
 ```
 
 ### Boundary Conditions
@@ -1080,7 +1124,7 @@ boundary_conditions <- c(
   # Alkalinity in eq/m3?
   ALK_up   = 2.5, #!
   # Solutes: concentrations in mol m-3
-  DIC_up   = 1,
+  DIC_up   = 2.56,
   CH4_up   = 0,
   H2PO4_up = 0.00235,
   NO3_up   =  0.0015, #!
@@ -1090,13 +1134,13 @@ boundary_conditions <- c(
   N2_up    = 0,
   Mn2_up   = 0.002, #!
   Fe2_up   = 0, #!
-  H2S_up   = 0,
+  H2S_up   = 0, #!
   Ca2_up   = 1.17,
   # Solids: flux in mol m-2 yr-1
-  OM_up      = 0.001 * 365, #0.013
-  OM_beta_up = 0.012 * 365,
-  MnO2_up    = 0.4,
-  FeOH3_up   = 0.75,
+  OM_up      = 0.019 * 365, #0.013
+  OM_beta_up = 0,
+  MnO2_up    = 0.4, #!
+  FeOH3_up   = 0.75, #!
   FeOH3_P_up = 0,
   FeCO3_up   = 0,
   S0_up      = 0, #!
@@ -1117,11 +1161,11 @@ dry_density_sediment <- 2700 # kg/m³
 reaction_parameter <- c(
     # OM degradation
   ## reaction constants
-  k_alpha = 1e-3 * 365, # yr-1; 0.005 * 365
-  k_beta  = 6e-5 * 365, # yr-1
+  k_alpha = 2.2e-3 * 365, # yr-1; 0.005 * 365
+  k_beta  = 0 * 6e-5 * 365, # yr-1
   ## composition of OM
   OM_a    = 1,
-  OM_b    = 12.04545 / 106,
+  OM_b    = 1 / 8.8,
   OM_c    = 1 / 106,
   ## limitation / inhibition constants (mol m-3)
   K_O2    = 0.02,
@@ -1136,13 +1180,17 @@ reaction_parameter <- c(
   # Siderite Precipitation / Dissolution
   k_precip_siderite = 1215,   # mol m-3_sf yr-1
   k_diss_siderite   = 2.5e-1, # yr-1
-  Ksp_siderite      = 10^(-8.4) * 1000^2, # mol2 m-6
+  Ksp_siderite      = 10^(-8.4) * 1000^2, # mol2 m-6 # *0.6
+  #k_precip_siderite = 1.8e2,  # mol m-3_sf yr-1
+  #k_diss_siderite   = 2.5e-1, # yr-1
+  #Ksp_siderite      = 10^(-10.4) * 1000^2, # mol2 m-6
+  
 
   # FeOH3 / FeOH3~H3PO4-Reduction coupled to Sulphide Oxidation
   k_Fe_red_S_ox = 8, # m3 mol-1 yr-1
 
   # FeOH3 / FeOH3~H3PO4-Formation
-  k_FeOH3_formation = 1.4e2, # m3 mol-1 yr-1 <<< 1.4e5 in  WVP
+  k_FeOH3_formation = 1.4e5, # m3 mol-1 yr-1
 
   # H2S Oxidation
   k_H2S_oxidation = 1.6e2, # m3_pw mol-1 yr-1
@@ -1151,23 +1199,26 @@ reaction_parameter <- c(
   k_SO4_reduction = 10, # m3_pw mol-1 yr-1
 
   # FeS Precipitation / Dissolution
-  k_precip_FeS = 100 * 2.5e-3, # mol m-3_sf yr-1
-  k_diss_FeS   = 100 * 1e-3, # yr-1
-  Ksp_FeS      = 10^(-3.915) * 1000, # mol m-3
+  k_precip_FeS = 40.5, # mol m-3_sf yr-1
+  k_diss_FeS   = 1 * 1e-3, # yr-1
+  Ksp_FeS      = 10^(-2.2) * 1000, # mol m-3 # *100
+  #k_precip_FeS = 1 * 2.5e-3, # mol m-3_sf yr-1
+  #k_diss_FeS   = 1 * 1e-3,   # yr-1
+  #Ksp_FeS      = 10^(-3.915) * 1000, # mol m-3
 
   # Vivianite Precipitation / Dissolution
-  k_precip_Viv = 1.1e-2, # mol m-3_sf yr-1
-  k_diss_Viv   = 5.3e-3, # yr-1
+  k_precip_Viv = 0 * 1.1e-2, # mol m-3_sf yr-1
+  k_diss_Viv   = 0 * 5.3e-3, # yr-1
   Ksp_Viv      = 10^(-36) * 1000^5, # mol3 m-9
 
   # CaCO3 Precipitation / Dissolution
-  k_precip_CaCO3 = 1.1e-1,  # mol m-3_sf yr-1
-  k_diss_CaCO3   = 1.25e-1, # mol m-3_sf yr-1
+  k_precip_CaCO3 = 0 * 1.1e-1,  # mol m-3_sf yr-1
+  k_diss_CaCO3   = 0 * 1.25e-1, # mol m-3_sf yr-1
   Ksp_CaCO3      = 10^(-8.48) * 1000^2, # mol2 m-6
 
   # Apatite Precipitation / Dissolution
-  k_precip_Apatite = 1.4e-6, # mol m-3 yr-1
-  k_diss_Apatite   = 3.7e-2, # yr-1
+  k_precip_Apatite = 0 * 1.4e-6, # mol m-3 yr-1
+  k_diss_Apatite   = 0 * 3.7e-2, # yr-1
   Ksp_Apatite      = 6e-20,  # mol3 m-9; 6e-20
 
   # Oxidation of Fe2 by MnO2
@@ -1188,25 +1239,79 @@ reaction_parameter <- c(
   # MnCO3 Precipitation / Dissolution
   k_precip_MnCO3 = 270,
   k_diss_MnCO3 = 0.8,
-  Ksp_MnCO3 = 10^(-8.5) * 1000^2
+  Ksp_MnCO3 = 10^(-8.5) * 1000^2 # *0.15
 )
+```
+
+### Fixed OM Degradation Rate
+```{r fixed OM Degradation Rate}
+#| echo: true
+
+get_OMdeg_total <- function(grid, grid.svf) {
+  
+  data <- read.csv("./WangVanCapProfiles/WVC_OMdeg_rate.csv")
+
+  data$depth <- data$depth * 0.01 # cm to m
+
+  # fit exponential model
+  fit <- nls(rate ~ p.exp(depth, y.0, y.inf = 0, x.L = 0, x.att),
+    data = data,
+    start = list(y.0 = 133, x.att = 0.05)
+  )
+
+  # calculate OM degradation rate at grid mids
+  OMdeg_total <- p.exp(grid$x.mid, coefficients(fit)["y.0"], 0, 0, coefficients(fit)["x.att"])
+  # correct unit from umol cm^-3_total yr-1 to mol m^-3_svf yr-1
+  OMdeg_total <- OMdeg_total * 1e-6 * 100^3 * 1 / grid.svf$mid
+
+  return(OMdeg_total)
+  
+}
+
+OMdeg_total <- get_OMdeg_total(grid, grid.svf)
 ```
 
 ### Collect Inputs
 ```{r collect inputs}
 #| echo: true
 
-ratios_pH7 <- speciation_ratios(pH = 7, tableau, tableau_species, logK)
+#ratios_pH7 <- speciation_ratios(pH = 7, tableau, tableau_species, logK)
+pH_profile <- read.csv("./WangVanCapProfiles/WVC_pH_profile.csv")
+colnames(pH_profile) <- c("pH", "depth")
+pH_profile$depth <- pH_profile$depth * 0.01
+pH_in_layers <- approx(y = pH_profile$pH, x = pH_profile$depth, xout = grid$x.mid, rule = 2)
+srm <- matrix(ncol = N_grid, nrow = 13)
+for (i in seq(1, N_grid)) {
+  srm[,i] <- speciation_ratios(pH = pH_in_layers$y[i], tableau, tableau_species, logK)
+}
+
+ratios <- list(
+    fixed_H = as.vector(srm[1,]),
+    f_H2CO3 = as.vector(srm[2,]),
+    f_HCO2  = as.vector(srm[3,]),
+    f_CO3   = as.vector(srm[4,]),
+    f_H2S   = as.vector(srm[5,]),
+    f_HS    = as.vector(srm[6,]),
+    f_S2    = as.vector(srm[7,]),
+    f_H3PO4 = as.vector(srm[8,]),
+    f_H2PO4 = as.vector(srm[9,]),
+    f_HPO4  = as.vector(srm[10,]),
+    f_PO4   = as.vector(srm[11,]),
+    f_NH4   = as.vector(srm[12,]),
+    f_NH3   = as.vector(srm[13,])
+  )
+
 
 parameter <- c(
   N_grid = N_grid,
   conversion_factors,
   boundary_conditions,
   reaction_parameter,
-  ratios_pH7,
+  ratios,
   logK = logK,
   tableau = tableau,
-  tableau_species = tableau_species
+  tableau_species = tableau_species,
+  OMdeg_total = OMdeg_total
 )
 
 N_species <- length(model_species)
@@ -1217,7 +1322,7 @@ N_species <- length(model_species)
 #| echo: true
 #| code-fold: show
 
-model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, precipitation){
+model <- function (t, state, parms, diff_coeffs, adv_vel, k_iri, solve_equilibrium, precipitation){
   
   with (as.list(parms),{
     
@@ -1253,85 +1358,90 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     MnCO3   <- state[((i-1) * N_grid + 1) : (i * N_grid)]; i <- i + 1
     
     # transport terms
+    ## weight used in the finite difference scheme for advection, defined on grid cell interfaces
+    ## backward = 1, centred = 0.5, forward = 0
+    AFDW = 0
+
     tran.ALK     <- tran.1D(C = ALK, C.up = ALK_up, D = diff_coeffs$ALK, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.DIC     <- tran.1D(C = DIC, C.up = DIC_up, D = diff_coeffs$DIC, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.TOT_P   <- tran.1D(C = TOT_P, C.up = H2PO4_up, D = diff_coeffs$H2PO4, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.TOT_N5  <- tran.1D(C = TOT_N5, C.up = NO3_up, D = diff_coeffs$NO3, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.TOT_N3  <- tran.1D(C = TOT_N3, C.up = NH4_up, D = diff_coeffs$NH4, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.TOT_S6  <- tran.1D(C = TOT_S6, C.up = SO4_up, D = diff_coeffs$SO4, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.TOT_S2  <- tran.1D(C = TOT_S2, C.up = H2S_up, D = diff_coeffs$H2S, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.CH4     <- tran.1D(C = CH4, C.up = CH4_up, D = diff_coeffs$CH4, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
 
     tran.O2      <- tran.1D(C = O2, C.up = O2_up, D = diff_coeffs$O2, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.N2      <- tran.1D(C = N2, C.up = N2_up, D = diff_coeffs$N2, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.Mn2     <- tran.1D(C = Mn2, C.up = Mn2_up, D = diff_coeffs$Mn2, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.Fe2     <- tran.1D(C = Fe2, C.up = Fe2_up, D = diff_coeffs$Fe2, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
 
     tran.Ca2     <- tran.1D(C = Ca2, C.up = Ca2_up, D = diff_coeffs$Ca2, 
-                            v = adv_vel$u, VF = grid.por, dx = grid)
+                            v = adv_vel$u, VF = grid.por, dx = grid, AFDW = AFDW)
     
     tran.MnO2    <- tran.1D(C = MnO2, flux.up = MnO2_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
     
     tran.OM      <- tran.1D(C = OM, flux.up = OM_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
 
     tran.OM_beta <- tran.1D(C = OM_beta, flux.up = OM_beta_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
     
     tran.FeOH3   <- tran.1D(C = FeOH3, flux.up = FeOH3_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
     
     tran.FeOH3_P <- tran.1D(C = FeOH3_P, flux.up = FeOH3_P_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
     
     tran.FeCO3   <- tran.1D(C = FeCO3, flux.up = FeCO3_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
 
     tran.S0      <- tran.1D(C = S0, flux.up = S0_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
 
     tran.FeS     <- tran.1D(C = FeS, flux.up = FeS_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
     
     tran.Viv     <- tran.1D(C = Viv, flux.up = Viv_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
 
     tran.CaCO3   <- tran.1D(C = CaCO3, flux.up = CaCO3_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
 
     tran.Apatite <- tran.1D(C = Apatite, flux.up = Apatite_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
 
     tran.MnCO3   <- tran.1D(C = MnCO3, flux.up = MnCO3_up, D = diff_coeffs$solid, 
-                            v = adv_vel$v, VF = grid.svf, dx = grid)
+                            v = adv_vel$v, VF = grid.svf, dx = grid, AFDW = AFDW)
     
     # calculate solute equilibrium species (solve the tableau)
     if (solve_equilibrium) {
       # 1) grep the solute total components; here we need TOT_H = - ALK
       solute_totals <- c(-ALK, DIC, TOT_P, TOT_N5, TOT_N3, TOT_S6, TOT_S2)
+      #solute_totals <- c(-ALK, DIC, rep(0, N_grid * 4), TOT_S2)
       # 2) solve tableau
       solute_equilibrium  <- solve_tableau(solute_totals, tableau, logK, N_grid, tableau_species)
       # 3) assign results
@@ -1366,32 +1476,50 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     chi[ind_valid] <- FeOH3[ind_valid] / FeOH3_tot[ind_valid]
     
     # limitation & inhibition terms
-    L_O2    <- O2   / (K_O2 + O2)
-    I_O2    <- K_O2 / (K_O2 + O2)
+    #L_O2    <- O2   / (K_O2 + O2)
+    #I_O2    <- K_O2 / (K_O2 + O2)
     
-    L_NO3   <- TOT_N5 / (K_NO3 + TOT_N5)
-    I_NO3   <- K_NO3 / (K_NO3 + TOT_N5)
+    #L_NO3   <- TOT_N5 / (K_NO3 + TOT_N5)
+    #I_NO3   <- K_NO3 / (K_NO3 + TOT_N5)
     
-    L_MnO2  <- MnO2   / (K_MnO2 + MnO2)
-    I_MnO2  <- K_MnO2 / (K_MnO2 + MnO2)
+    #L_MnO2  <- MnO2   / (K_MnO2 + MnO2)
+    #I_MnO2  <- K_MnO2 / (K_MnO2 + MnO2)
     
-    L_FeOH3 <- FeOH3_tot / (K_FeOH3 + FeOH3_tot)
-    I_FeOH3 <- K_FeOH3 / (K_FeOH3 + FeOH3_tot)
+    #L_FeOH3 <- FeOH3_tot / (K_FeOH3 + FeOH3_tot)
+    #I_FeOH3 <- K_FeOH3 / (K_FeOH3 + FeOH3_tot)
     
-    L_SO4   <- TOT_S6 / (K_SO4 + TOT_S6)
-    I_SO4   <- K_SO4 / (K_SO4 + TOT_S6)
+    #L_SO4   <- TOT_S6 / (K_SO4 + TOT_S6)
+    #I_SO4   <- K_SO4 / (K_SO4 + TOT_S6)
     
     L_H3PO4 <- TOT_P   / (K_H3PO4 + TOT_P)
     I_H3PO4 <- K_H3PO4 / (K_H3PO4 + TOT_P)
+
+    # linearized limitation & inhibition terms
+    L_O2    <- pmin(1, O2 / K_O2)
+    I_O2    <- 1 - L_O2
+    
+    L_NO3   <- pmin(1, TOT_N5 / K_NO3)
+    I_NO3   <- 1 - L_NO3
+    
+    L_MnO2  <- pmin(1, MnO2 / K_MnO2)
+    I_MnO2  <- 1 - L_MnO2
+
+    L_FeOH3 <- pmin(1, FeOH3_tot / K_FeOH3)
+    I_FeOH3 <- 1 - L_FeOH3
+    
+    L_SO4   <- pmin(1, TOT_S6 / K_SO4)
+    I_SO4   <- 1 - L_SO4
     
     # Reaction Rates
     ## OM Degradation
-    R1 <- k_alpha * OM * L_O2
-    R2 <- k_alpha * OM * L_NO3                            * I_O2
-    R3 <- k_alpha * OM * L_MnO2                   * I_NO3 * I_O2
-    R4 <- k_alpha * OM * L_FeOH3         * I_MnO2 * I_NO3 * I_O2
-    R5 <- k_alpha * OM * L_SO4 * I_FeOH3 * I_MnO2 * I_NO3 * I_O2
-    R6 <- k_alpha * OM * I_SO4 * I_FeOH3 * I_MnO2 * I_NO3 * I_O2
+    #R_OMdeg_tot <- k_alpha * OM
+    R_OMdeg_tot <- OMdeg_total # fixed rate profile from Wang & Van Capellen
+    R1 <- R_OMdeg_tot * L_O2
+    R2 <- R_OMdeg_tot * L_NO3                            * I_O2
+    R3 <- R_OMdeg_tot * L_MnO2                   * I_NO3 * I_O2
+    R4 <- R_OMdeg_tot * L_FeOH3         * I_MnO2 * I_NO3 * I_O2
+    R5 <- R_OMdeg_tot * L_SO4 * I_FeOH3 * I_MnO2 * I_NO3 * I_O2
+    R6 <- R_OMdeg_tot * I_SO4 * I_FeOH3 * I_MnO2 * I_NO3 * I_O2
 
     R1b <- k_beta * OM_beta * L_O2
     R2b <- k_beta * OM_beta * L_NO3                            * I_O2
@@ -1408,8 +1536,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     } else {
       omega_siderite <- rep(1, N_grid)
     }
-    R7 <- ifelse(omega_siderite > 1, k_precip_siderite * (omega_siderite - 1)^2, 0)
-    R8 <- ifelse(omega_siderite < 1, k_diss_siderite * FeCO3 * (1 - omega_siderite)^2, 0)
+    R7 <- ifelse(omega_siderite > 1, k_precip_siderite * (omega_siderite - 1)^1.2, 0)
+    R8 <- ifelse(omega_siderite < 1, k_diss_siderite * FeCO3 * (1 - omega_siderite)^1.2, 0)
 
     ## FeOH3 / FeOH3~H3PO4-Reduction coupled to Sulphide Oxidation
     R9 <- k_Fe_red_S_ox * FeOH3_tot * TOT_S2
@@ -1435,8 +1563,8 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     } else {
       omega_FeS <- rep(1, N_grid)
     }
-    R13 <- ifelse(omega_FeS > 1, k_precip_FeS * (omega_FeS - 1)^2, 0)
-    R14 <- ifelse(omega_FeS < 1, k_diss_FeS * FeS * (1 - omega_FeS)^2, 0)
+    R13 <- ifelse(omega_FeS > 1, k_precip_FeS * (omega_FeS - 1)^1.2, 0)
+    R14 <- ifelse(omega_FeS < 1, k_diss_FeS * FeS * (1 - omega_FeS)^1.2, 0)
 
     ## Vivianite: R15 = precipitation, R16 = dissolution
     if (precipitation & solve_equilibrium) {
@@ -1473,7 +1601,6 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
 
     ## Fe Oxidation by MnO2
     R21 <- k_I11 * MnO2 * Fe2
-    #R21 <- 0
 
     ## Ammonium Oxidation
     if (solve_equilibrium) {
@@ -1481,19 +1608,15 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     } else {
       R22 <- k_I12 * TOT_N3 * f_NH4 * O2
     }
-    #R22 <- 0
 
     ## Sulphide Oxidation by MnO2
     R23 <- k_I14 * TOT_S2 * MnO2
-    #R23 <- 0
 
     ## FeS Oxidation by O2
     R24 <- k_I16 * FeS * O2
-    #R24 <- 0
 
     ## CH4 Oxidation by O2
     R25 <- k_I17 * CH4 * O2
-    #R25 <- 0
 
     ## MnCO3: R26 = precipitation, R27 = dissolution
     if (precipitation & solve_equilibrium) {
@@ -1604,21 +1727,36 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
     R.CaCO3 <- R17 - R18
     R.Apatite <- R19 - R20
     R.MnCO3 <- R26 - R27
+
+    # Irrigation (for solutes)
+    I.ALK    <- k_iri * (ALK_up - ALK)
+    I.DIC    <- k_iri * (DIC_up - DIC)
+    I.CH4    <- k_iri * (CH4_up - CH4)
+    I.TOT_P  <- k_iri * (H2PO4_up - TOT_P)
+    I.TOT_N5 <- k_iri * (NO3_up - TOT_N5)
+    I.TOT_N3 <- k_iri * (NH4_up - TOT_N3)
+    I.N2     <- k_iri * (N2_up - N2)
+    I.TOT_S6 <- k_iri * (SO4_up - TOT_S6)
+    I.TOT_S2 <- k_iri * (H2S_up - TOT_S2)
+    I.O2     <- k_iri * (O2_up - O2)
+    I.Mn2    <- k_iri * (Mn2_up - Mn2)
+    I.Fe2    <- k_iri * (Fe2_up - Fe2)
+    I.Ca2    <- k_iri * (Ca2_up - Ca2)
     
     # total change in concentration of model species
-    dCdt.ALK     <- R.ALK + tran.ALK$dC
-    dCdt.DIC     <- R.DIC + tran.DIC$dC
-    dCdt.CH4     <- R.CH4 + tran.CH4$dC
-    dCdt.TOT_P   <- R.TOT_P + tran.TOT_P$dC
-    dCdt.TOT_N5  <- R.TOT_N5 + tran.TOT_N5$dC
-    dCdt.TOT_N3  <- R.TOT_N3 + tran.TOT_N3$dC
-    dCdt.N2      <- R.N2  + tran.N2$dC
-    dCdt.TOT_S6  <- R.TOT_S6 + tran.TOT_S6$dC
-    dCdt.TOT_S2  <- R.TOT_S2 + tran.TOT_S2$dC
-    dCdt.O2      <- R.O2 + tran.O2$dC
-    dCdt.Mn2     <- R.Mn2 + tran.Mn2$dC
-    dCdt.Fe2     <- R.Fe2 + tran.Fe2$dC
-    dCdt.Ca2     <- R.Ca2 + tran.Ca2$dC
+    dCdt.ALK     <- R.ALK + tran.ALK$dC + I.ALK
+    dCdt.DIC     <- R.DIC + tran.DIC$dC + I.DIC
+    dCdt.CH4     <- R.CH4 + tran.CH4$dC + I.CH4
+    dCdt.TOT_P   <- R.TOT_P + tran.TOT_P$dC + I.TOT_P
+    dCdt.TOT_N5  <- R.TOT_N5 + tran.TOT_N5$dC + I.TOT_N5
+    dCdt.TOT_N3  <- R.TOT_N3 + tran.TOT_N3$dC + I.TOT_N3
+    dCdt.N2      <- R.N2  + tran.N2$dC + I.N2
+    dCdt.TOT_S6  <- R.TOT_S6 + tran.TOT_S6$dC + I.TOT_S6
+    dCdt.TOT_S2  <- R.TOT_S2 + tran.TOT_S2$dC + I.TOT_S2
+    dCdt.O2      <- R.O2 + tran.O2$dC + I.O2
+    dCdt.Mn2     <- R.Mn2 + tran.Mn2$dC + I.Mn2
+    dCdt.Fe2     <- R.Fe2 + tran.Fe2$dC + I.Fe2
+    dCdt.Ca2     <- R.Ca2 + tran.Ca2$dC + I.Ca2
     dCdt.OM      <- R.OM + tran.OM$dC
     dCdt.OM_beta <- R.OM_beta + tran.OM_beta$dC
     dCdt.MnO2    <- R.MnO2 + tran.MnO2$dC
@@ -1749,7 +1887,10 @@ model <- function (t, state, parms, diff_coeffs, adv_vel, solve_equilibrium, pre
           R.Viv     = R.Viv * grid.svf$mid,
           R.CaCO3   = R.CaCO3 * grid.svf$mid,
           R.Apatite = R.Apatite * grid.svf$mid,
-          R.MnCO3   = R.MnCO3 * grid.svf$mid
+          R.MnCO3   = R.MnCO3 * grid.svf$mid,
+          I.TOT_S6  = I.TOT_S6  * grid.por$mid,
+          I.O2      = I.O2  * grid.por$mid,
+          I.TOT_N5  = I.TOT_N5 * grid.por$mid
         ),
         rates = list(
           R1  = R1  * grid.svf$mid,
@@ -1830,6 +1971,7 @@ if (run_std & run_std0) {
     method = "stode",
     diff_coeffs = diffusion_coefficients,
     adv_vel = advective_velocities,
+    k_iri = grid.k_iri$mid,
     solve_equilibrium = FALSE,
     precipitation = FALSE
   )
@@ -1856,6 +1998,7 @@ if (run_std & run_std1) {
     method = "stode",
     diff_coeffs = diffusion_coefficients,
     adv_vel = advective_velocities,
+    k_iri = grid.k_iri$mid,
     solve_equilibrium = FALSE,
     precipitation = TRUE
   )
@@ -1890,6 +2033,7 @@ if (run_std & run_std2) {
     maxiter = 100,
     diff_coeffs = diffusion_coefficients,
     adv_vel = advective_velocities,
+    k_iri = grid.k_iri$mid,
     solve_equilibrium = TRUE,
     precipitation = TRUE
   )
@@ -2021,6 +2165,18 @@ plot_simple_comparision(
   b_name = "std2",
   grid = grid,
   xlab = "omega Apatite",
+  ylab = "depth (m)",
+  log = "x"
+)
+abline(v = 1, lwd = 2, col = "red")
+
+plot_simple_comparision(
+  a = std1$omega$MnCO3,
+  b = std2$omega$MnCO3,
+  a_name = "std1",
+  b_name = "std2",
+  grid = grid,
+  xlab = "omega MnCO3",
   ylab = "depth (m)",
   log = "x"
 )
