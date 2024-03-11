@@ -6,14 +6,14 @@ title: "Comparision to Wang & Van Capellen (1996)"
 ```{r load libraries}
 #| message: false
 
-trigger <- 1
+trigger <- 0
 
 require(readODS)
 #require(plotly)
 ```
 
 ```{r conversion factor}
-por <- 0.818
+por <- 0.8
 svf <- 1 - por
 
 conv <- 1e6 * 1e-3 # umol/mol * m3/L
@@ -261,8 +261,8 @@ colnames(NH4_orig) <- c("conc", "depth")
 NH4_orig$depth <- NH4_orig$depth * 0.01
 
 std.plot(
-  NO3_std1 = std.conc(std1, "NO3") * conv,
-  NO3_std2 = std.conc(std2, "NO3") * conv,
+  NO3_std1 = std.conc(std1, "TOT_N5") * conv,
+  NO3_std2 = std.conc(std2, "TOT_N5") * conv,
   depth = c(0.00, 0.1)
 )
 points(
@@ -271,7 +271,7 @@ points(
 )
 
 std.plot(
-  NH4_std1 = std.conc(std1, "TOT_N3") * conv,
+  NH4_std1 = std.conc(std1, "NH4") * conv,
   NH4_std2 = std.conc(std2, "TOT_N3") * conv,
   depth = c(0.00, 0.1)
 )
@@ -386,11 +386,35 @@ points(
 ![](./WangVanCapProfiles/C_Oxidation_Rate.png)
 
 ```{r plot C-Oxidation}
-#| layout-ncol: 2
-#| fig.height: 6.5
+#| layout-ncol: 1
+#| fig.height: 8
+#| out.width: 100%
 
 std1_total = std.rate(std1, "R1") + std.rate(std1, "R2") + std.rate(std1, "R3") + std.rate(std1, "R4") + std.rate(std1, "R5") + std.rate(std1, "R6")
 std2_total = std.rate(std2, "R1") + std.rate(std2, "R2") + std.rate(std2, "R3") + std.rate(std2, "R4") + std.rate(std2, "R5") + std.rate(std2, "R6")
+
+OMdeg_orig <- read.csv("./WangVanCapProfiles/WVC_OMdeg_rate.csv", header = TRUE)
+OMdeg_orig$depth <- OMdeg_orig$depth * 0.01
+
+R1_orig <- read.csv("./WangVanCapProfiles/WVC_R1.csv", header = TRUE)
+colnames(R1_orig) <- c("rate", "depth")
+R1_orig$depth <- R1_orig$depth * 0.01
+
+R2_orig <- read.csv("./WangVanCapProfiles/WVC_R2.csv", header = TRUE)
+colnames(R2_orig) <- c("rate", "depth")
+R2_orig$depth <- R2_orig$depth * 0.01
+
+R3_orig <- read.csv("./WangVanCapProfiles/WVC_R3.csv", header = TRUE)
+colnames(R3_orig) <- c("rate", "depth")
+R3_orig$depth <- R3_orig$depth * 0.01
+
+R4_orig <- read.csv("./WangVanCapProfiles/WVC_R4.csv", header = TRUE)
+colnames(R4_orig) <- c("rate", "depth")
+R4_orig$depth <- R4_orig$depth * 0.01
+
+R5_orig <- read.csv("./WangVanCapProfiles/WVC_R5.csv", header = TRUE)
+colnames(R5_orig) <- c("rate", "depth")
+R5_orig$depth <- R5_orig$depth * 0.01
 
 std.plot(
   total = std1_total * conv_rates,
@@ -402,6 +426,36 @@ std.plot(
   R6 = std.rate(std1, "R6") * conv_rates,
   depth = c(0.00, 0.1)
 )
+points(
+  x = OMdeg_orig$rate,
+  y = OMdeg_orig$depth
+)
+cols <- palette.colors(7)
+points(
+  x = R1_orig$rate,
+  y = R1_orig$depth,
+  col = cols[2]
+)
+points(
+  x = R2_orig$rate,
+  y = R2_orig$depth,
+  col = cols[3]
+)
+points(
+  x = R3_orig$rate,
+  y = R3_orig$depth,
+  col = cols[4]
+)
+points(
+  x = R4_orig$rate,
+  y = R4_orig$depth,
+  col = cols[5]
+)
+points(
+  x = R5_orig$rate,
+  y = R5_orig$depth,
+  col = cols[6]
+)
 
 std.plot(
   total = std2_total * conv_rates,
@@ -412,6 +466,36 @@ std.plot(
   R5 = std.rate(std2, "R5") * conv_rates,
   R6 = std.rate(std2, "R6") * conv_rates,
   depth = c(0.00, 0.1)
+)
+points(
+  x = OMdeg_orig$rate,
+  y = OMdeg_orig$depth
+)
+cols <- palette.colors(7)
+points(
+  x = R1_orig$rate,
+  y = R1_orig$depth,
+  col = cols[2]
+)
+points(
+  x = R2_orig$rate,
+  y = R2_orig$depth,
+  col = cols[3]
+)
+points(
+  x = R3_orig$rate,
+  y = R3_orig$depth,
+  col = cols[4]
+)
+points(
+  x = R4_orig$rate,
+  y = R4_orig$depth,
+  col = cols[5]
+)
+points(
+  x = R5_orig$rate,
+  y = R5_orig$depth,
+  col = cols[6]
 )
 ```
 
